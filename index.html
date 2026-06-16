@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>車屋 管理システム - ダッシュボード</title>
+        <style>
+            :root{--bg:#f5f7fb;--card:#fff;--accent:#1565c0;--muted:#6b7280}
+            *{box-sizing:border-box}
+            body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:#111}
+            .app{display:flex;min-height:100vh}
+            .sidenav{width:220px;background:#0f1724;color:#fff;padding:20px 12px;flex:0 0 220px}
+            .sidenav h2{font-size:16px;margin:0 0 18px}
+            .nav{list-style:none;padding:0;margin:0}
+            .nav li{padding:10px 8px;border-radius:6px;margin-bottom:6px;cursor:pointer}
+            .nav li:hover{background:rgba(255,255,255,0.04)}
+            .nav li.active{background:rgba(255,255,255,0.06);font-weight:600}
+            .main{flex:1;padding:20px}
+            .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+            .search{display:flex;gap:8px;align-items:center}
+            .search input{padding:8px 10px;border-radius:6px;border:1px solid #d1d5db}
+            .cards{display:flex;gap:16px;margin-bottom:18px}
+            .card{background:var(--card);padding:16px;border-radius:8px;box-shadow:0 1px 0 rgba(0,0,0,0.04);flex:1}
+            .card h3{margin:0;font-size:14px;color:var(--muted)}
+            .card p{margin:8px 0 0;font-size:22px;font-weight:700}
+            .panel{background:var(--card);padding:16px;border-radius:8px}
+            .view{display:none}
+            .view.active{display:block}
+            table{width:100%;border-collapse:collapse}
+            th,td{padding:10px 8px;text-align:left;border-bottom:1px solid #eef2f7;font-size:14px}
+            th{color:var(--muted);font-weight:600}
+            .actions button{margin-right:6px;padding:6px 10px;border-radius:6px;border:0;background:#eef2ff;color:var(--accent)}
+            .status{padding:4px 8px;border-radius:999px;font-size:12px}
+            .status.available{background:#e6f4ea;color:#116530}
+            .status.loaned{background:#fff4e6;color:#7a3b00}
+            .status.returned{background:#e6f4ea;color:#116530}
+            .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999}
+            .modal.active{display:flex;justify-content:center;align-items:center}
+            .modal-content{background:var(--card);padding:24px;border-radius:8px;width:90%;max-width:500px;box-shadow:0 10px 40px rgba(0,0,0,0.2)}
+            .modal-header{margin-bottom:16px}
+            .modal-header h2{margin:0;font-size:18px}
+            .modal-body{margin-bottom:16px}
+            .form-group{margin-bottom:12px}
+            .form-group label{display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--muted)}
+            .form-group input,.form-group select,.form-group textarea{width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;font-size:14px;font-family:inherit}
+            .form-group textarea{resize:vertical;min-height:80px}
+            .modal-footer{display:flex;gap:8px;justify-content:flex-end}
+            .modal-footer button{padding:8px 16px;border-radius:6px;border:1px solid #d1d5db;background:transparent;cursor:pointer}
+            .modal-footer button.primary{background:var(--accent);color:#fff;border:0}
+            @media(max-width:800px){.sidenav{display:none}.cards{flex-direction:column}}
+        </style>
+    </head>
+    <body>
+        <div class="app">
+            <aside class="sidenav">
+                <h2>車屋 管理システム</h2>
+                <ul class="nav">
+                    <li data-view="dashboard">ダッシュボード</li>
+                    <li data-view="daisha">代車管理</li>
+                    <li data-view="dealer-number">ディーラーナンバー</li>
+                    <li data-view="deposit">預かり車両</li>
+                    <li data-view="settings">設定</li>
+                </ul>
+            </aside>
+            <main class="main">
+                <!-- ダッシュボードビュー -->
+                <section id="dashboard" class="view active">
+                    <div class="header">
+                        <div>
+                            <h1 style="margin:0 0 6px">ダッシュボード</h1>
+                            <div style="color:var(--muted);font-size:13px">代車・貸出・預かりの状況サマリ</div>
+                        </div>
+                        <div class="search">
+                            <input type="text" placeholder="検索（顧客名 / 車両 / ナンバー）">
+                            <button id="quick-create" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">新規作成</button>
+                        </div>
+                    </div>
+
+                    <div class="cards">
+                        <div class="card">
+                            <h3>代車総数</h3>
+                            <p>24</p>
+                        </div>
+                        <div class="card">
+                            <h3>貸出中の代車</h3>
+                            <p>6</p>
+                        </div>
+                        <div class="card">
+                            <h3>預かり車両</h3>
+                            <p>12</p>
+                        </div>
+                    </div>
+
+                    <section class="panel">
+                        <h2 style="margin:0 0 12px">代車一覧（概要）</h2>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                            <div style="color:var(--muted)">フィルタ: <select><option>全て</option><option>貸出中</option><option>整備中</option><option>空車</option></select></div>
+                            <div>
+                                <button style="margin-right:8px;padding:6px 10px;border-radius:6px;border:1px solid #e2e8f0;background:transparent">CSV</button>
+                                <button style="padding:6px 10px;border-radius:6px;border:0;background:var(--accent);color:#fff">エクスポート</button>
+                            </div>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>車種</th>
+                                    <th>型式</th>
+                                    <th>色</th>
+                                    <th>ナンバー</th>
+                                    <th>車検</th>
+                                    <th>ステータス</th>
+                                </tr>
+                            </thead>
+                            <tbody class="daisha-list" id="daisha-overview-tbody">
+                            </tbody>
+                        </table>
+                    </section>
+                </section>
+
+                <!-- 代車管理ビュー -->
+                <section id="daisha" class="view">
+                    <div class="header">
+                        <div>
+                            <h1 style="margin:0 0 6px">代車管理</h1>
+                            <div style="color:var(--muted);font-size:13px">代車の一覧・登録・管理</div>
+                        </div>
+                        <div class="search">
+                            <input type="text" placeholder="車両ID / 車種 / ナンバー で検索">
+                            <button data-modal-trigger="modal-daisha-register" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">新規代車登録</button>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <h2 style="margin:0 0 12px">代車一覧</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>車種</th>
+                                    <th>型式</th>
+                                    <th>色</th>
+                                    <th>ナンバー</th>
+                                    <th>車検</th>
+                                    <th>ステータス</th>
+                                </tr>
+                            </thead>
+                            <tbody class="daisha-list" id="daisha-manage-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- ディーラーナンバー貸出ビュー -->
+                <section id="dealer-number" class="view">
+                    <div class="header">
+                        <div>
+                            <h1 style="margin:0 0 6px">ディーラーナンバー貸出管理</h1>
+                            <div style="color:var(--muted);font-size:13px">ディーラーナンバーの貸出・返却管理</div>
+                        </div>
+                        <div class="search">
+                            <input type="text" placeholder="ナンバー / 貸出先 で検索">
+                            <button data-modal-trigger="modal-dealer-register" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">貸出申請</button>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <h2 style="margin:0 0 12px">貸出一覧</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>日付</th>
+                                    <th>車名</th>
+                                    <th>回送目的</th>
+                                    <th>使用者</th>
+                                    <th>貸渡時間</th>
+                                    <th>返却時間</th>
+                                    <th>状態</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dealer-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 預かり車両ビュー -->
+                <section id="deposit" class="view">
+                    <div class="header">
+                        <div>
+                            <h1 style="margin:0 0 6px">預かり車両管理</h1>
+                            <div style="color:var(--muted);font-size:13px">入庫・作業・引取の管理</div>
+                        </div>
+                        <div class="search">
+                            <input type="text" placeholder="顧客名 / 車両 で検索">
+                            <button data-modal-trigger="modal-deposit-receive" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">受入登録</button>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <h2 style="margin:0 0 12px">預かり一覧</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>預かりID</th>
+                                    <th>顧客名</th>
+                                    <th>車両</th>
+                                    <th>入庫日</th>
+                                    <th>ステータス</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>DP-100</td>
+                                    <td>顧客B</td>
+                                    <td>トヨタ カローラ / 川崎 500 さ 33-44</td>
+                                    <td>2026-06-10</td>
+                                    <td><span class="status available">作業中</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 設定ビュー -->
+                <section id="settings" class="view">
+                    <div class="header">
+                        <div>
+                            <h1 style="margin:0 0 6px">設定</h1>
+                            <div style="color:var(--muted);font-size:13px">プルダウン選択肢の管理</div>
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                        <!-- 回送目的 -->
+                        <div class="panel">
+                            <h3 style="margin:0 0 12px">回送目的</h3>
+                            <div style="margin-bottom:12px">
+                                <input type="text" id="input-purpose" placeholder="例：特定整備" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                <button onclick="addOption('purpose')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
+                            </div>
+                            <ul id="list-purpose" style="list-style:none;padding:0;margin:0">
+                            </ul>
+                        </div>
+
+                        <!-- 発地 -->
+                        <div class="panel">
+                            <h3 style="margin:0 0 12px">発地</h3>
+                            <div style="margin-bottom:12px">
+                                <input type="text" id="input-from" placeholder="例：Museuм" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                <button onclick="addOption('from')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
+                            </div>
+                            <ul id="list-from" style="list-style:none;padding:0;margin:0">
+                            </ul>
+                        </div>
+
+                        <!-- 着地 -->
+                        <div class="panel">
+                            <h3 style="margin:0 0 12px">着地</h3>
+                            <div style="margin-bottom:12px">
+                                <input type="text" id="input-to" placeholder="例：下諏訪" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                <button onclick="addOption('to')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
+                            </div>
+                            <ul id="list-to" style="list-style:none;padding:0;margin:0">
+                            </ul>
+                        </div>
+
+                        <!-- 使用者 -->
+                        <div class="panel">
+                            <h3 style="margin:0 0 12px">使用者</h3>
+                            <div style="margin-bottom:12px">
+                                <input type="text" id="input-user" placeholder="例：山田太郎" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                <button onclick="addOption('user')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
+                            </div>
+                            <ul id="list-user" style="list-style:none;padding:0;margin:0">
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+        </div>
+
+        <!-- モーダル: 代車登録 -->
+        <div id="modal-daisha-register" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>新規代車登録</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>車種</label>
+                        <input type="text" id="daisha-make" placeholder="例：トヨタ アクア">
+                    </div>
+                    <div class="form-group">
+                        <label>型式</label>
+                        <input type="text" id="daisha-model" placeholder="例：NHP10">
+                    </div>
+                    <div class="form-group">
+                        <label>色</label>
+                        <input type="text" id="daisha-color" placeholder="例：ホワイト">
+                    </div>
+                    <div class="form-group">
+                        <label>ナンバー</label>
+                        <input type="text" id="daisha-number" placeholder="例：横浜 300 あ 12-34">
+                    </div>
+                    <div class="form-group">
+                        <label>車検</label>
+                        <input type="date" id="daisha-shaken">
+                    </div>
+                    <div class="form-group">
+                        <label>ステータス</label>
+                        <select id="daisha-status">
+                            <option>空車</option>
+                            <option>貸出中</option>
+                            <option>整備中</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>備考</label>
+                        <textarea id="daisha-note" placeholder="特記事項があればお書き下さい"></textarea>
+                    </div>
+                </div>
+                    <div class="modal-footer">
+                    <button data-modal-close>キャンセル</button>
+                    <button class="primary" onclick="submitDaishaRegistration()">登録</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- datalists for settings-driven dropdowns -->
+        <datalist id="dl-purpose"></datalist>
+        <datalist id="dl-from"></datalist>
+        <datalist id="dl-to"></datalist>
+        <datalist id="dl-user"></datalist>
+
+        <!-- モーダル: 貸出申請 -->
+        <div id="modal-dealer-register" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>ディーラーナンバー貸出申請</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>日付</label>
+                        <input type="date" id="loan-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>回送目的</label>
+                        <input type="text" id="loan-purpose" list="dl-purpose" placeholder="特定整備、中古新規、予備検枻" required>
+                    </div>
+                    <div class="form-group">
+                        <label>車名</label>
+                        <input type="text" id="loan-car" placeholder="例：トヨタ アクア" required>
+                    </div>
+                    <div class="form-group">
+                        <label>車体番号</label>
+                        <input type="text" id="loan-vin" placeholder="例：VJH123456">
+                    </div>
+                    <div class="form-group">
+                        <label>発地</label>
+                        <input type="text" id="loan-from" list="dl-from" placeholder="Museuм、下諏訪、岡谷、松本陸運局" required>
+                    </div>
+                    <div class="form-group">
+                        <label>着地</label>
+                        <input type="text" id="loan-to" list="dl-to" placeholder="Museuм、下諏訪、岡谷、松本陸運局" required>
+                    </div>
+                    <div class="form-group">
+                        <label>使用者</label>
+                        <input type="text" id="loan-user" list="dl-user" placeholder="山田太郎、茶木一郎" required>
+                    </div>
+                    <div class="form-group">
+                        <label>貸渡時間</label>
+                        <input type="time" id="loan-start" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button data-modal-close>キャンセル</button>
+                    <button class="primary" onclick="submitLoanApplication()">申請</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- モーダル: 預かり受入 -->
+        <div id="modal-deposit-receive" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>預かり車両受入登録</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>顧客名</label>
+                        <input type="text" placeholder="顧客名">
+                    </div>
+                    <div class="form-group">
+                        <label>車種</label>
+                        <input type="text" placeholder="例：トヨタ カローラ">
+                    </div>
+                    <div class="form-group">
+                        <label>ナンバー</label>
+                        <input type="text" placeholder="例：川崎 500 さ 33-44">
+                    </div>
+                    <div class="form-group">
+                        <label>入庫日</label>
+                        <input type="date">
+                    </div>
+                    <div class="form-group">
+                        <label>作業内容</label>
+                        <textarea placeholder="例：エンジンオイル交換、修理内容など"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>見積り金額</label>
+                        <input type="number" placeholder="50000">
+                    </div>
+                    <div class="form-group">
+                        <label>保管場所</label>
+                        <input type="text" placeholder="例：第1保管所">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button data-modal-close>キャンセル</button>
+                    <button class="primary" onclick="alert('受入登録しました')">登録</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- モーダル: 返却時刻入力 -->
+        <div id="modal-return-time" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>返却登録</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>返却時刻（HH:MM）</label>
+                        <input type="time" id="return-time-input">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button data-modal-close>キャンセル</button>
+                    <button class="primary" onclick="submitReturnTime()">返却登録</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- モーダル: 貸出申請編集 -->
+        <div id="modal-loan-edit" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>貸出申請編集</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>日付</label>
+                        <input type="date" id="edit-loan-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>回送目的</label>
+                        <input type="text" id="edit-loan-purpose" list="dl-purpose" required>
+                    </div>
+                    <div class="form-group">
+                        <label>車名</label>
+                        <input type="text" id="edit-loan-car" required>
+                    </div>
+                    <div class="form-group">
+                        <label>車体番号</label>
+                        <input type="text" id="edit-loan-vin">
+                    </div>
+                    <div class="form-group">
+                        <label>発地</label>
+                        <input type="text" id="edit-loan-from" list="dl-from" required>
+                    </div>
+                    <div class="form-group">
+                        <label>着地</label>
+                        <input type="text" id="edit-loan-to" list="dl-to" required>
+                    </div>
+                    <div class="form-group">
+                        <label>使用者</label>
+                        <input type="text" id="edit-loan-user" list="dl-user" required>
+                    </div>
+                    <div class="form-group">
+                        <label>貸渡時間</label>
+                        <input type="time" id="edit-loan-start" required>
+                    </div>
+                    <div class="form-group">
+                        <label>返却時間</label>
+                        <input type="time" id="edit-loan-end">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button data-modal-close>キャンセル</button>
+                    <button onclick="deleteLoan()" style="background:#fff1f0;color:#7a1b1b;border:1px solid #f5c6cb;padding:8px 12px;border-radius:6px;margin-right:8px">削除</button>
+                    <button class="primary" onclick="saveLoanEdit()">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- モーダル: 貸出詳細 -->
+        <div id="modal-loan-detail" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>貸出詳細</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group"><label>日付</label><div id="detail-date" style="padding:6px 0"></div></div>
+                    <div class="form-group"><label>車名</label><div id="detail-car" style="padding:6px 0"></div></div>
+                    <div class="form-group"><label>車体番号</label><div id="detail-vin" style="padding:6px 0"></div></div>
+                    <div class="form-group"><label>回送目的</label><div id="detail-purpose" style="padding:6px 0"></div></div>
+                    <div class="form-group"><label>発地</label><div id="detail-from" style="padding:6px 0"></div></div>
+                    <div class="form-group"><label>着地</label><div id="detail-to" style="padding:6px 0"></div></div>
+                    <div class="form-group"><label>使用者</label><div id="detail-user" style="padding:6px 0"></div></div>
+                    <div class="form-group"><label>貸渡時間</label><div id="detail-start" style="padding:6px 0"></div></div>
+                    <div class="form-group"><label>返却時間</label><div id="detail-returned" style="padding:6px 0"></div></div>
+                    <div class="form-group"><label>状態</label><div id="detail-status" style="padding:6px 0"></div></div>
+                </div>
+                <div class="modal-footer">
+                    <button data-modal-close>閉じる</button>
+                    <button class="primary" onclick="document.getElementById('modal-loan-detail').classList.remove('active'); editLoan(window._detailLoanId)">編集</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 設定画面用 datalist -->
+        <datalist id="dl-purpose"></datalist>
+        <datalist id="dl-from"></datalist>
+        <datalist id="dl-to"></datalist>
+        <datalist id="dl-user"></datalist>
+
+        <script>
+            (function(){
+                function showView(id){
+                    document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id===id));
+                    document.querySelectorAll('.nav li').forEach(li=>li.classList.toggle('active', li.dataset.view===id));
+                }
+
+                // nav クリック
+                document.querySelectorAll('.nav li[data-view]').forEach(li=>{
+                    li.addEventListener('click', ()=>{
+                        showView(li.dataset.view);
+                    });
+                });
+
+                // クイックリンク
+                document.getElementById('quick-create')?.addEventListener('click', ()=>{
+                    showView('daisha');
+                });
+
+                // モーダル開く
+                document.querySelectorAll('[data-modal-trigger]').forEach(btn=>{
+                    btn.addEventListener('click', ()=>{
+                        const id = btn.dataset.modalTrigger;
+                        document.getElementById(id)?.classList.add('active');
+                    });
+                });
+
+                // モーダル閉じる（クローズボタン）
+                document.querySelectorAll('[data-modal-close]').forEach(btn=>{
+                    btn.addEventListener('click', (e)=>{
+                        e.target.closest('.modal')?.classList.remove('active');
+                    });
+                });
+
+                // モーダル背景クリックで閉じる
+                document.querySelectorAll('.modal').forEach(modal=>{
+                    modal.addEventListener('click', (e)=>{
+                        if(e.target === modal){
+                            modal.classList.remove('active');
+                        }
+                    });
+                });
+
+                // 初期表示: ダッシュボード
+                showView('dashboard');
+
+                // === 設定管理機能 ===
+                const CONFIG_KEYS = ['purpose', 'from', 'to', 'user'];
+                const DATALIST_IDS = {purpose: 'dl-purpose', from: 'dl-from', to: 'dl-to', user: 'dl-user'};
+
+                // LocalStorage から初期化
+                function initSettings(){
+                    CONFIG_KEYS.forEach(key=>{
+                        if(!localStorage.getItem(`options-${key}`)){
+                            const defaults = {
+                                purpose: ['特定整備', '中古新規', '予備検査'],
+                                from: ['Museuм', '下諏訪', '岡谷', '松本陸運局'],
+                                to: ['Museuм', '下諏訪', '岡谷', '松本陸運局'],
+                                user: []
+                            };
+                            localStorage.setItem(`options-${key}`, JSON.stringify(defaults[key]||[]));
+                        }
+                    });
+                    refreshAllDataLists();
+                    renderAllLists();
+                }
+
+                // Datalist 要素を動的に更新
+                function refreshAllDataLists(){
+                    CONFIG_KEYS.forEach(key=>{
+                        const opts = JSON.parse(localStorage.getItem(`options-${key}`)||'[]');
+                        const datalist = document.getElementById(DATALIST_IDS[key]);
+                        if(datalist){
+                            datalist.innerHTML = opts.map(opt=>`<option value="${opt}"></option>`).join('');
+                        }
+                    });
+                }
+
+                // 設定画面のリストを表示
+                function renderAllLists(){
+                    CONFIG_KEYS.forEach(key=>{
+                        const opts = JSON.parse(localStorage.getItem(`options-${key}`)||'[]');
+                        const ul = document.getElementById(`list-${key}`);
+                        if(ul){
+                            ul.innerHTML = opts.map(opt=>`<li style="padding:6px;background:#f3f4f6;margin-bottom:4px;border-radius:4px;display:flex;justify-content:space-between"><span>${opt}</span><button onclick="removeOption('${key}','${opt.replace(/'/g, "\\'")}')" style="padding:2px 6px;border-radius:4px;border:1px solid #d1d5db;background:#fff;cursor:pointer">削除</button></li>`).join('');
+                        }
+                    });
+                }
+
+                // グローバル関数: オプション追加
+                window.addOption = (key)=>{
+                    const input = document.getElementById(`input-${key}`);
+                    const value = input?.value?.trim();
+                    if(!value) return alert('入力してください');
+                    const opts = JSON.parse(localStorage.getItem(`options-${key}`)||'[]');
+                    if(opts.includes(value)) return alert('すでに登録済みです');
+                    opts.push(value);
+                    localStorage.setItem(`options-${key}`, JSON.stringify(opts));
+                    input.value = '';
+                    refreshAllDataLists();
+                    renderAllLists();
+                };
+
+                // グローバル関数: オプション削除
+                window.removeOption = (key, value)=>{
+                    const opts = JSON.parse(localStorage.getItem(`options-${key}`)||'[]');
+                    const idx = opts.indexOf(value);
+                    if(idx>=0){
+                        opts.splice(idx, 1);
+                        localStorage.setItem(`options-${key}`, JSON.stringify(opts));
+                        refreshAllDataLists();
+                        renderAllLists();
+                    }
+                };
+
+                // 初期化
+                initSettings();
+                // datalist 初期化
+                function refreshAllDataLists(){
+                    const map = {purpose:'dl-purpose', from:'dl-from', to:'dl-to', user:'dl-user'};
+                    Object.keys(map).forEach(k=>{
+                        const arr = JSON.parse(localStorage.getItem('options-'+k)||'[]');
+                        const dl = document.getElementById(map[k]);
+                        if(!dl) return;
+                        dl.innerHTML = arr.map(v=>`<option value="${v}"></option>`).join('');
+                    });
+                }
+                refreshAllDataLists();
+
+                // === 代車データ管理 ===
+                function loadDaishas(){ try{ return JSON.parse(localStorage.getItem('daishas')||'[]'); }catch(e){return[]} }
+                function saveDaishas(arr){ localStorage.setItem('daishas', JSON.stringify(arr)); }
+
+                function renderDaishas(){
+                    const lists = document.querySelectorAll('.daisha-list');
+                    if(!lists || lists.length===0) return;
+                    const daishas = loadDaishas();
+                    const rows = (daishas.length===0)
+                        ? '<tr><td colspan="6" style="color:var(--muted)">データがありません</td></tr>'
+                        : daishas.map(d=>{
+                            const cls = d.status === '貸出中' ? 'loaned' : (d.status === '返却済' ? 'returned' : 'available');
+                            return `<tr>
+                                <td>${escapeHtml(d.make||'')}</td>
+                                <td>${escapeHtml(d.model||'')}</td>
+                                <td>${escapeHtml(d.color||'')}</td>
+                                <td>${escapeHtml(d.number||'')}</td>
+                                <td>${escapeHtml(d.shaken||'')}</td>
+                                <td><span class="status ${cls}">${escapeHtml(d.status||'')}</span></td>
+                            </tr>`;
+                        }).join('');
+                    lists.forEach(tb=> tb.innerHTML = rows);
+                }
+
+                window.submitDaishaRegistration = function(){
+                    const modal = document.getElementById('modal-daisha-register');
+                    const make = document.getElementById('daisha-make')?.value.trim();
+                    const model = document.getElementById('daisha-model')?.value.trim();
+                    const color = document.getElementById('daisha-color')?.value.trim();
+                    const number = document.getElementById('daisha-number')?.value.trim();
+                    const shaken = document.getElementById('daisha-shaken')?.value || '';
+                    const status = document.getElementById('daisha-status')?.value || '';
+                    const note = document.getElementById('daisha-note')?.value?.trim()||'';
+                    if(!make || !number){ alert('車種とナンバーを入力してください'); return; }
+                    const list = loadDaishas();
+                    const entry = {id:'D-'+Date.now(), make, model, color, number, shaken, status, note};
+                    list.unshift(entry);
+                    saveDaishas(list);
+                    renderDaishas();
+                    modal.classList.remove('active');
+                    alert('代車を登録しました');
+                };
+
+                // 初期描画 for daisha
+                renderDaishas();
+
+                // === 貸出データ管理 ===
+                function loadLoans(){
+                    try{ return JSON.parse(localStorage.getItem('loans')||'[]'); }catch(e){return[]}
+                }
+                function saveLoans(arr){ localStorage.setItem('loans', JSON.stringify(arr)); }
+
+                function renderLoans(){
+                    const tbody = document.getElementById('dealer-tbody');
+                    if(!tbody) return;
+                    const loans = loadLoans();
+                    if(loans.length===0){
+                        tbody.innerHTML = '<tr><td colspan="8" style="color:var(--muted)">データがありません</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = loans.map(l=>{
+                        const statusClass = l.status === '返却済' ? 'returned' : (l.status === '貸出中' ? 'loaned' : 'available');
+                        let actionBtns = `<button onclick="viewLoan('${escapeHtml(l.id)}')" style="padding:4px 8px;border-radius:6px;border:0;background:#f3f4f6;color:#111;cursor:pointer;margin-right:6px;font-size:12px">詳細</button>`;
+                        if(l.status !== '返却済'){
+                            actionBtns += `<button onclick="markReturned('${escapeHtml(l.id)}')" style="padding:4px 8px;border-radius:6px;border:0;background:#eef2ff;color:var(--accent);cursor:pointer;font-size:12px">返却</button>`;
+                        }
+                        return `<tr>
+                            <td>${escapeHtml(l.date||'')}</td>
+                            <td>${escapeHtml(l.car||'')}</td>
+                            <td>${escapeHtml(l.purpose||'')}</td>
+                            <td>${escapeHtml(l.user||'')}</td>
+                            <td>${escapeHtml(l.start||'')}</td>
+                            <td>${escapeHtml(l.returnedAt||'')}</td>
+                            <td><span class="status ${statusClass}">${escapeHtml(l.status||'貸出中')}</span></td>
+                            <td>${actionBtns}</td>
+                        </tr>`;
+                    }).join('');
+                }
+
+                // escape
+                function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+                window.submitLoanApplication = function(){
+                    const modal = document.getElementById('modal-dealer-register');
+                    const requiredFields = [
+                        {id:'loan-date', name:'日付'},
+                        {id:'loan-purpose', name:'回送目的'},
+                        {id:'loan-car', name:'車名'},
+                        {id:'loan-from', name:'発地'},
+                        {id:'loan-to', name:'着地'},
+                        {id:'loan-user', name:'使用者'},
+                        {id:'loan-start', name:'貸渡時間'}
+                    ];
+                    const missing = [];
+                    requiredFields.forEach(f=>{
+                        const el = document.getElementById(f.id);
+                        const val = el?.value;
+                        if(!val || String(val).trim()==='') missing.push(f);
+                    });
+                    if(missing.length){
+                        alert(missing.map(m=>m.name).join('、') + ' を入力してください');
+                        document.getElementById(missing[0].id)?.focus();
+                        return;
+                    }
+
+                    const date = document.getElementById('loan-date')?.value;
+                    const purpose = document.getElementById('loan-purpose')?.value.trim();
+                    const car = document.getElementById('loan-car')?.value.trim();
+                    const vin = document.getElementById('loan-vin')?.value.trim();
+                    const from = document.getElementById('loan-from')?.value.trim();
+                    const to = document.getElementById('loan-to')?.value.trim();
+                    const user = document.getElementById('loan-user')?.value.trim();
+                    const start = document.getElementById('loan-start')?.value;
+
+                    const loans = loadLoans();
+                    const entry = {id: 'L-'+Date.now(), date, purpose, car, vin, from, to, user, start, status:'貸出中'};
+                    loans.unshift(entry);
+                    saveLoans(loans);
+                    renderLoans();
+                    modal.classList.remove('active');
+                    alert('貸出申請を保存しました');
+                };
+
+                // グローバル変数: 返却対象ローンID
+                window._returnTargetId = null;
+
+                // 返却登録処理（モーダルを開く）
+                window.markReturned = function(id){
+                    const loans = loadLoans();
+                    const loan = loans.find(x=>x.id===id);
+                    if(!loan) return alert('対象が見つかりません');
+                    window._returnTargetId = id;
+                    const defaultTime = (new Date()).toTimeString().slice(0,5);
+                    document.getElementById('return-time-input').value = defaultTime;
+                    document.getElementById('modal-return-time').classList.add('active');
+                };
+
+                // 返却時刻を保存
+                window.submitReturnTime = function(){
+                    const loans = loadLoans();
+                    const id = window._returnTargetId;
+                    const idx = loans.findIndex(x=>x.id===id);
+                    if(idx<0) return alert('対象が見つかりません');
+                    const rt = document.getElementById('return-time-input')?.value;
+                    if(!rt) return alert('返却時刻を入力してください');
+                    loans[idx].status = '返却済';
+                    loans[idx].returnedAt = rt;
+                    saveLoans(loans);
+                    renderLoans();
+                    document.getElementById('modal-return-time').classList.remove('active');
+                    alert('返却を登録しました');
+                };
+
+                // 編集画面を開く
+                window.editLoan = function(id){
+                    const loans = loadLoans();
+                    const loan = loans.find(x=>x.id===id);
+                    if(!loan) return alert('対象が見つかりません');
+                    window._editLoanId = id;
+                    document.getElementById('edit-loan-date').value = loan.date||'';
+                    document.getElementById('edit-loan-purpose').value = loan.purpose||'';
+                    document.getElementById('edit-loan-car').value = loan.car||'';
+                    document.getElementById('edit-loan-vin').value = loan.vin||'';
+                    document.getElementById('edit-loan-from').value = loan.from||'';
+                    document.getElementById('edit-loan-to').value = loan.to||'';
+                    document.getElementById('edit-loan-user').value = loan.user||'';
+                    document.getElementById('edit-loan-start').value = loan.start||'';
+                    document.getElementById('edit-loan-end').value = loan.returnedAt||'';
+                    document.getElementById('modal-loan-edit').classList.add('active');
+                };
+
+                // 履歴の詳細を表示
+                window.viewLoan = function(id){
+                    const loans = loadLoans();
+                    const loan = loans.find(x=>x.id===id);
+                    if(!loan) return alert('対象が見つかりません');
+                    window._detailLoanId = id;
+                    document.getElementById('detail-date').textContent = loan.date||'';
+                    document.getElementById('detail-car').textContent = loan.car||'';
+                    document.getElementById('detail-vin').textContent = loan.vin||'';
+                    document.getElementById('detail-purpose').textContent = loan.purpose||'';
+                    document.getElementById('detail-from').textContent = loan.from||'';
+                    document.getElementById('detail-to').textContent = loan.to||'';
+                    document.getElementById('detail-user').textContent = loan.user||'';
+                    document.getElementById('detail-start').textContent = loan.start||'';
+                    document.getElementById('detail-returned').textContent = loan.returnedAt||'';
+                    document.getElementById('detail-status').textContent = loan.status||'';
+                    document.getElementById('modal-loan-detail').classList.add('active');
+                };
+
+                // 編集内容を保存
+                window.saveLoanEdit = function(){
+                    const loans = loadLoans();
+                    const id = window._editLoanId;
+                    const idx = loans.findIndex(x=>x.id===id);
+                    if(idx<0) return alert('対象が見つかりません');
+                    const requiredFields = [
+                        {id:'edit-loan-date', name:'日付'},
+                        {id:'edit-loan-purpose', name:'回送目的'},
+                        {id:'edit-loan-car', name:'車名'},
+                        {id:'edit-loan-from', name:'発地'},
+                        {id:'edit-loan-to', name:'着地'},
+                        {id:'edit-loan-user', name:'使用者'},
+                        {id:'edit-loan-start', name:'貸渡時間'}
+                    ];
+                    const missing = [];
+                    requiredFields.forEach(f=>{
+                        const el = document.getElementById(f.id);
+                        const val = el?.value;
+                        if(!val || String(val).trim()==='') missing.push(f);
+                    });
+                    if(missing.length){
+                        alert(missing.map(m=>m.name).join('、') + ' を入力してください');
+                        document.getElementById(missing[0].id)?.focus();
+                        return;
+                    }
+                    loans[idx].date = document.getElementById('edit-loan-date').value;
+                    loans[idx].purpose = document.getElementById('edit-loan-purpose').value.trim();
+                    loans[idx].car = document.getElementById('edit-loan-car').value.trim();
+                    loans[idx].vin = document.getElementById('edit-loan-vin').value.trim();
+                    loans[idx].from = document.getElementById('edit-loan-from').value.trim();
+                    loans[idx].to = document.getElementById('edit-loan-to').value.trim();
+                    loans[idx].user = document.getElementById('edit-loan-user').value.trim();
+                    loans[idx].start = document.getElementById('edit-loan-start').value;
+                    const editedReturned = document.getElementById('edit-loan-end').value;
+                    loans[idx].returnedAt = editedReturned;
+                    // 状態を返却済に更新するか、空欄なら貸出中に戻す
+                    loans[idx].status = editedReturned ? '返却済' : '貸出中';
+                    saveLoans(loans);
+                    renderLoans();
+                    document.getElementById('modal-loan-edit').classList.remove('active');
+                    alert('編集内容を保存しました');
+                };
+
+                // 編集モーダルから削除
+                window.deleteLoan = function(){
+                    const id = window._editLoanId;
+                    if(!id) return alert('削除対象がありません');
+                    if(!confirm('本当にこの貸出を削除しますか？')) return;
+                    const loans = loadLoans();
+                    const idx = loans.findIndex(x=>x.id===id);
+                    if(idx<0) return alert('対象が見つかりません');
+                    loans.splice(idx,1);
+                    saveLoans(loans);
+                    renderLoans();
+                    document.getElementById('modal-loan-edit').classList.remove('active');
+                    alert('削除しました');
+                };
+
+                // 初期描画
+                renderLoans();
+            })();
+        </script>
+    </body>
+</html>
