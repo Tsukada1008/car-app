@@ -1,0 +1,12 @@
+.DS_Store
+Thumbs.db
+.vscode/
+node_modules/
+.env
+*.log
+# Visual Studio
+.vs/
+# OS files
+ehthumbs.db
+Icon?
+
