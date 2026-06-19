@@ -45,6 +45,9 @@
             .form-group label{display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--muted)}
             .form-group input,.form-group select,.form-group textarea{width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;font-size:14px;font-family:inherit}
             .form-group textarea{resize:vertical;min-height:80px}
+            .checkbox-group{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+            .checkbox-option{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;font-size:14px;cursor:pointer}
+            .checkbox-option input{width:auto;margin:0}
             .modal-footer{display:flex;gap:8px;justify-content:flex-end}
             .modal-footer button{padding:8px 16px;border-radius:6px;border:1px solid #d1d5db;background:transparent;cursor:pointer}
             .modal-footer button.primary{background:var(--accent);color:#fff;border:0}
@@ -722,11 +725,11 @@
                     </div>
                     <div class="form-group">
                         <label>入庫区分</label>
-                        <select id="deposit-category" multiple size="3">
-                            <option>整備</option>
-                            <option>鈑金</option>
-                            <option>その他</option>
-                        </select>
+                        <div id="deposit-category" class="checkbox-group">
+                            <label class="checkbox-option"><input type="checkbox" value="整備">整備</label>
+                            <label class="checkbox-option"><input type="checkbox" value="鈑金">鈑金</label>
+                            <label class="checkbox-option"><input type="checkbox" value="その他">その他</label>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>代車</label>
@@ -734,13 +737,13 @@
                     </div>
                     <div class="form-group">
                         <label>支払方法</label>
-                        <select id="deposit-payment" multiple size="5">
-                            <option>現金</option>
-                            <option>振込</option>
-                            <option>クレジットカード</option>
-                            <option>電子マネー</option>
-                            <option>その他</option>
-                        </select>
+                        <div id="deposit-payment" class="checkbox-group">
+                            <label class="checkbox-option"><input type="checkbox" value="現金">現金</label>
+                            <label class="checkbox-option"><input type="checkbox" value="振込">振込</label>
+                            <label class="checkbox-option"><input type="checkbox" value="クレジットカード">クレジットカード</label>
+                            <label class="checkbox-option"><input type="checkbox" value="電子マネー">電子マネー</label>
+                            <label class="checkbox-option"><input type="checkbox" value="その他">その他</label>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>作業内容</label>
@@ -791,11 +794,11 @@
                     </div>
                     <div class="form-group">
                         <label>入庫区分</label>
-                        <select id="edit-deposit-category" multiple size="3">
-                            <option>整備</option>
-                            <option>鈑金</option>
-                            <option>その他</option>
-                        </select>
+                        <div id="edit-deposit-category" class="checkbox-group">
+                            <label class="checkbox-option"><input type="checkbox" value="整備">整備</label>
+                            <label class="checkbox-option"><input type="checkbox" value="鈑金">鈑金</label>
+                            <label class="checkbox-option"><input type="checkbox" value="その他">その他</label>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>代車</label>
@@ -803,13 +806,13 @@
                     </div>
                     <div class="form-group">
                         <label>支払方法</label>
-                        <select id="edit-deposit-payment" multiple size="5">
-                            <option>現金</option>
-                            <option>振込</option>
-                            <option>クレジットカード</option>
-                            <option>電子マネー</option>
-                            <option>その他</option>
-                        </select>
+                        <div id="edit-deposit-payment" class="checkbox-group">
+                            <label class="checkbox-option"><input type="checkbox" value="現金">現金</label>
+                            <label class="checkbox-option"><input type="checkbox" value="振込">振込</label>
+                            <label class="checkbox-option"><input type="checkbox" value="クレジットカード">クレジットカード</label>
+                            <label class="checkbox-option"><input type="checkbox" value="電子マネー">電子マネー</label>
+                            <label class="checkbox-option"><input type="checkbox" value="その他">その他</label>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>作業内容</label>
@@ -1907,17 +1910,28 @@
                 }
 
                 function getSelectedValues(selectId){
-                    const select = document.getElementById(selectId);
-                    if(!select) return [];
-                    return Array.from(select.selectedOptions).map(option => option.value).filter(Boolean);
+                    const field = document.getElementById(selectId);
+                    if(!field) return [];
+                    if(field.matches('select')){
+                        return Array.from(field.selectedOptions).map(option => option.value).filter(Boolean);
+                    }
+                    return Array.from(field.querySelectorAll('input[type="checkbox"]:checked'))
+                        .map(input => input.value)
+                        .filter(Boolean);
                 }
 
                 function setSelectedValues(selectId, values){
-                    const select = document.getElementById(selectId);
-                    if(!select) return;
+                    const field = document.getElementById(selectId);
+                    if(!field) return;
                     const selectedValues = Array.isArray(values) ? values : [values].filter(Boolean);
-                    Array.from(select.options).forEach(option => {
-                        option.selected = selectedValues.includes(option.value);
+                    if(field.matches('select')){
+                        Array.from(field.options).forEach(option => {
+                            option.selected = selectedValues.includes(option.value);
+                        });
+                        return;
+                    }
+                    Array.from(field.querySelectorAll('input[type="checkbox"]')).forEach(input => {
+                        input.checked = selectedValues.includes(input.value);
                     });
                 }
 
@@ -2125,6 +2139,8 @@
                         if(!el) return;
                         if(el.multiple){
                             Array.from(el.options).forEach(option => option.selected = false);
+                        }else if(el.classList.contains('checkbox-group')){
+                            Array.from(el.querySelectorAll('input[type="checkbox"]')).forEach(input => input.checked = false);
                         }else{
                             el.value = '';
                         }
