@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <title>車屋 管理システム - ダッシュボード</title>
+        <title>MuseuM VMS</title>
         <style>
             :root{--bg:#f5f7fb;--card:#fff;--accent:#1565c0;--muted:#6b7280}
             *{box-sizing:border-box}
@@ -15,7 +15,7 @@
             .nav li{padding:10px 8px;border-radius:6px;margin-bottom:6px;cursor:pointer}
             .nav li:hover{background:rgba(255,255,255,0.04)}
             .nav li.active{background:rgba(255,255,255,0.06);font-weight:600}
-            .main{flex:1;padding:20px}
+            .main{flex:1;min-width:0;padding:20px}
             .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
             .search{display:flex;gap:8px;align-items:center}
             .search input{padding:8px 10px;border-radius:6px;border:1px solid #d1d5db}
@@ -23,7 +23,7 @@
             .card{background:var(--card);padding:16px;border-radius:8px;box-shadow:0 1px 0 rgba(0,0,0,0.04);flex:1}
             .card h3{margin:0;font-size:14px;color:var(--muted)}
             .card p{margin:8px 0 0;font-size:22px;font-weight:700}
-            .panel{background:var(--card);padding:16px;border-radius:8px}
+            .panel{background:var(--card);padding:16px;border-radius:8px;overflow-x:auto}
             .view{display:none}
             .view.active{display:block}
             table{width:100%;border-collapse:collapse}
@@ -31,9 +31,10 @@
             th{color:var(--muted);font-weight:600}
             .actions button{margin-right:6px;padding:6px 10px;border-radius:6px;border:0;background:#eef2ff;color:var(--accent)}
             .status{padding:4px 8px;border-radius:999px;font-size:12px}
-            .status.available{background:#e6f4ea;color:#116530}
-            .status.loaned{background:#fff4e6;color:#7a3b00}
-            .status.returned{background:#e6f4ea;color:#116530}
+            .status.available{background:#e0f2fe;color:#075985}
+            .status.loaned{background:#fef3c7;color:#92400e}
+            .status.maintenance{background:#fce7f3;color:#9d174d}
+            .status.returned{background:#e0f2fe;color:#075985}
             .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999}
             .modal.active{display:flex;justify-content:center;align-items:center}
             .modal-content{background:var(--card);padding:24px;border-radius:8px;width:90%;max-width:500px;box-shadow:0 10px 40px rgba(0,0,0,0.2)}
@@ -47,18 +48,109 @@
             .modal-footer{display:flex;gap:8px;justify-content:flex-end}
             .modal-footer button{padding:8px 16px;border-radius:6px;border:1px solid #d1d5db;background:transparent;cursor:pointer}
             .modal-footer button.primary{background:var(--accent);color:#fff;border:0}
-            @media(max-width:800px){.sidenav{display:none}.cards{flex-direction:column}}
+
+            .vehicle-detail-grid{
+                display:grid;
+                grid-template-columns:repeat(2,1fr);
+                gap:10px;
+            }
+            .detail-item{
+                background:#f9fafb;
+                padding:10px;
+                border-radius:8px;
+                border:1px solid #eef2f7;
+            }
+            .detail-item label{
+                display:block;
+                font-size:12px;
+                color:var(--muted);
+                margin-bottom:4px;
+            }
+            .detail-item div{
+                font-size:15px;
+                font-weight:600;
+            }
+            .clickable-car{
+                appearance:none;
+                border:0;
+                background:transparent;
+                padding:0;
+                font:inherit;
+                color:var(--accent);
+                cursor:pointer;
+                font-weight:600;
+                text-decoration:underline;
+                text-underline-offset:3px;
+            }
+            .clickable-car:hover{color:#0d47a1}
+            .back-btn{
+                margin-bottom:12px;
+                padding:8px 12px;
+                border-radius:6px;
+                border:1px solid #d1d5db;
+                background:#fff;
+                cursor:pointer;
+            }
+            .detail-actions{
+                margin-top:16px;
+                display:flex;
+                gap:8px;
+                flex-wrap:wrap;
+            }
+            .history-table{min-width:760px}
+            .history-table td{vertical-align:top}
+            .empty-state{color:var(--muted);padding:10px 0}
+            @media(max-width:800px){
+                .app{display:block}
+                .sidenav{display:none}
+                .main{padding:14px}
+                .header{align-items:stretch;flex-direction:column;gap:12px}
+                .search{align-items:stretch;flex-direction:column;width:100%}
+                .search input,.search button{width:100%}
+                .cards{flex-direction:column}
+                .vehicle-detail-grid{grid-template-columns:1fr}
+                .detail-actions button,.back-btn{width:100%}
+                table{min-width:680px}
+            }
+            @media(max-width:640px){
+                .history-table{min-width:0}
+                .history-table thead{display:none}
+                .history-table,
+                .history-table tbody,
+                .history-table tr,
+                .history-table td{display:block;width:100%}
+                .history-table tr{
+                    border:1px solid #eef2f7;
+                    border-radius:8px;
+                    margin-bottom:10px;
+                    overflow:hidden;
+                    background:#f9fafb;
+                }
+                .history-table td{
+                    border-bottom:1px solid #eef2f7;
+                    display:grid;
+                    grid-template-columns:9em 1fr;
+                    gap:8px;
+                    padding:9px 10px;
+                }
+                .history-table td:last-child{border-bottom:0}
+                .history-table td::before{
+                    content:attr(data-label);
+                    color:var(--muted);
+                    font-weight:600;
+                }
+            }
         </style>
     </head>
     <body>
         <div class="app">
             <aside class="sidenav">
-                <h2>車屋 管理システム</h2>
+                <h2>MuseuM VMS</h2>
                 <ul class="nav">
                     <li data-view="dashboard">ダッシュボード</li>
+                    <li data-view="deposit">預かり車両</li>
                     <li data-view="daisha">代車管理</li>
                     <li data-view="dealer-number">ディーラーナンバー</li>
-                    <li data-view="deposit">預かり車両</li>
                     <li data-view="settings">設定</li>
                 </ul>
             </aside>
@@ -71,36 +163,28 @@
                             <div style="color:var(--muted);font-size:13px">代車・貸出・預かりの状況サマリ</div>
                         </div>
                         <div class="search">
-                            <input type="text" placeholder="検索（顧客名 / 車両 / ナンバー）">
-                            <button id="quick-create" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">新規作成</button>
+                            <input type="text" id="dashboard-search" placeholder="検索（貸出先 / 代車 / ナンバー）">
+                            <button id="dashboard-search-btn" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">検索</button>
                         </div>
                     </div>
 
                     <div class="cards">
                         <div class="card">
-                            <h3>代車総数</h3>
+                            <h3>預かり車両</h3>
                             <p>24</p>
                         </div>
                         <div class="card">
-                            <h3>貸出中の代車</h3>
-                            <p>6</p>
+                            <h3>貸出可能代車</h3>
+                            <p id="dashboard-available-daisha-count">0</p>
                         </div>
                         <div class="card">
-                            <h3>預かり車両</h3>
-                            <p>12</p>
+                            <h3>代車の総数</h3>
+                            <p id="dashboard-total-daisha-count">0</p>
                         </div>
                     </div>
 
                     <section class="panel">
-                        <h2 style="margin:0 0 12px">代車一覧（概要）</h2>
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                            <div style="color:var(--muted)">フィルタ: <select><option>全て</option><option>貸出中</option><option>整備中</option><option>空車</option></select></div>
-                            <div>
-                                <button style="margin-right:8px;padding:6px 10px;border-radius:6px;border:1px solid #e2e8f0;background:transparent">CSV</button>
-                                <button style="padding:6px 10px;border-radius:6px;border:0;background:var(--accent);color:#fff">エクスポート</button>
-                            </div>
-                        </div>
-
+                        <h2 style="margin:0 0 12px">貸出可能代車</h2>
                         <table>
                             <thead>
                                 <tr>
@@ -112,13 +196,24 @@
                                     <th>ステータス</th>
                                 </tr>
                             </thead>
-                            <tbody class="daisha-list" id="daisha-overview-tbody">
+                            <tbody class="daisha-list" data-mode="overview" id="daisha-overview-tbody">
                             </tbody>
                         </table>
                     </section>
                 </section>
 
                 <!-- 代車管理ビュー -->
+                <section id="search-results" class="view">
+                    <div class="header">
+                        <div>
+                            <h1 style="margin:0 0 6px">検索結果</h1>
+                            <div id="search-results-summary" style="color:var(--muted);font-size:13px"></div>
+                        </div>
+                        <button onclick="showView('dashboard')" style="padding:8px 12px;border-radius:6px;border:1px solid #d1d5db;background:#fff;cursor:pointer">ダッシュボードに戻る</button>
+                    </div>
+                    <div id="search-results-content"></div>
+                </section>
+
                 <section id="daisha" class="view">
                     <div class="header">
                         <div>
@@ -142,11 +237,72 @@
                                     <th>ナンバー</th>
                                     <th>車検</th>
                                     <th>ステータス</th>
+                                    <th>操作</th>
                                 </tr>
                             </thead>
-                            <tbody class="daisha-list" id="daisha-manage-tbody">
+                            <tbody class="daisha-list" data-mode="manage" id="daisha-manage-tbody">
                             </tbody>
                         </table>
+                    </div>
+                </section>
+
+
+                <!-- 代車詳細ビュー -->
+                <section id="daisha-detail" class="view">
+                    <button class="back-btn" onclick="showDaishaList()">← 代車一覧に戻る</button>
+
+                    <div class="panel">
+                        <h2 id="detail-daisha-title" style="margin:0 0 12px">車両詳細</h2>
+
+                        <div class="vehicle-detail-grid">
+                            <div class="detail-item">
+                                <label>車種</label>
+                                <div id="detail-daisha-make"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label>型式</label>
+                                <div id="detail-daisha-model"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label>色</label>
+                                <div id="detail-daisha-color"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label>ナンバー</label>
+                                <div id="detail-daisha-number"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label>車検満了日</label>
+                                <div id="detail-daisha-shaken"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label>貸出状況</label>
+                                <div id="detail-daisha-status"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label>現在の貸出先</label>
+                                <div id="detail-daisha-loan-to"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label>現在の貸出日</label>
+                                <div id="detail-daisha-loan-date"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label>備考</label>
+                                <div id="detail-daisha-note"></div>
+                            </div>
+                        </div>
+
+                        <div class="detail-actions">
+                            <button id="detail-daisha-edit-btn" style="padding:8px 16px;border-radius:6px;border:0;background:var(--accent);color:#fff;cursor:pointer">編集</button>
+                            <button id="detail-daisha-loan-btn" style="padding:8px 16px;border-radius:6px;border:0;background:#eef2ff;color:var(--accent);cursor:pointer">貸出登録</button>
+                            <button id="detail-daisha-return-btn" style="padding:8px 16px;border-radius:6px;border:0;background:#eef2ff;color:var(--accent);cursor:pointer">返却登録</button>
+                        </div>
+                    </div>
+
+                    <div class="panel" style="margin-top:16px">
+                        <h2 style="margin:0 0 12px">貸出履歴</h2>
+                        <div id="detail-daisha-history"></div>
                     </div>
                 </section>
 
@@ -328,11 +484,110 @@
             </div>
         </div>
 
-        <!-- datalists for settings-driven dropdowns -->
-        <datalist id="dl-purpose"></datalist>
-        <datalist id="dl-from"></datalist>
-        <datalist id="dl-to"></datalist>
-        <datalist id="dl-user"></datalist>
+        <!-- モーダル: 代車編集 -->
+        <div id="modal-daisha-edit" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>代車情報編集</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>車種</label>
+                        <input type="text" id="edit-daisha-make" placeholder="例：トヨタ アクア">
+                    </div>
+                    <div class="form-group">
+                        <label>型式</label>
+                        <input type="text" id="edit-daisha-model" placeholder="例：NHP10">
+                    </div>
+                    <div class="form-group">
+                        <label>色</label>
+                        <input type="text" id="edit-daisha-color" placeholder="例：ホワイト">
+                    </div>
+                    <div class="form-group">
+                        <label>ナンバー</label>
+                        <input type="text" id="edit-daisha-number" placeholder="例：横浜 300 あ 12-34">
+                    </div>
+                    <div class="form-group">
+                        <label>車検</label>
+                        <input type="date" id="edit-daisha-shaken">
+                    </div>
+                    <div class="form-group">
+                        <label>ステータス</label>
+                        <select id="edit-daisha-status">
+                            <option>空車</option>
+                            <option>貸出中</option>
+                            <option>整備中</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>備考</label>
+                        <textarea id="edit-daisha-note" placeholder="特記事項があればお書き下さい"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button data-modal-close>キャンセル</button>
+                    <button class="primary" onclick="saveDaishaEdit()">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- モーダル: 代車貸出登録 -->
+        <div id="modal-daisha-loan" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>代車貸出登録</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>貸出先 <span style="color:#b91c1c">*</span></label>
+                        <input type="text" id="daisha-loan-to" placeholder="貸出先を入力してください" required>
+                    </div>
+                    <div class="form-group">
+                        <label>貸出日</label>
+                        <input type="date" id="daisha-loan-date">
+                    </div>
+                    <div class="form-group">
+                        <label>燃料</label>
+                        <input type="text" id="daisha-loan-fuel" placeholder="例：満タン、1/2">
+                    </div>
+                    <div class="form-group">
+                        <label>備考</label>
+                        <textarea id="daisha-loan-note" placeholder="貸出時の備考を入力"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button data-modal-close>キャンセル</button>
+                    <button class="primary" onclick="submitDaishaLoan()">登録</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- モーダル: 代車返却登録 -->
+        <div id="modal-daisha-return" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>代車返却登録</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>返却日 <span style="color:#b91c1c">*</span></label>
+                        <input type="date" id="daisha-return-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>燃料</label>
+                        <input type="text" id="daisha-return-fuel" placeholder="例：満タン、1/2">
+                    </div>
+                    <div class="form-group">
+                        <label>備考</label>
+                        <textarea id="daisha-return-note" placeholder="返却時の備考を入力"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button data-modal-close>キャンセル</button>
+                    <button class="primary" onclick="submitDaishaReturn()">登録</button>
+                </div>
+            </div>
+        </div>
 
         <!-- モーダル: 貸出申請 -->
         <div id="modal-dealer-register" class="modal">
@@ -532,6 +787,7 @@
                     document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id===id));
                     document.querySelectorAll('.nav li').forEach(li=>li.classList.toggle('active', li.dataset.view===id));
                 }
+                window.showView = showView;
 
                 // nav クリック
                 document.querySelectorAll('.nav li[data-view]').forEach(li=>{
@@ -541,8 +797,12 @@
                 });
 
                 // クイックリンク
-                document.getElementById('quick-create')?.addEventListener('click', ()=>{
-                    showView('daisha');
+                document.getElementById('dashboard-search-btn')?.addEventListener('click', ()=>{
+                    runDashboardSearch();
+                });
+
+                document.getElementById('dashboard-search')?.addEventListener('keydown', (e)=>{
+                    if(e.key === 'Enter') runDashboardSearch();
                 });
 
                 // モーダル開く
@@ -643,52 +903,245 @@
 
                 // 初期化
                 initSettings();
-                // datalist 初期化
-                function refreshAllDataLists(){
-                    const map = {purpose:'dl-purpose', from:'dl-from', to:'dl-to', user:'dl-user'};
-                    Object.keys(map).forEach(k=>{
-                        const arr = JSON.parse(localStorage.getItem('options-'+k)||'[]');
-                        const dl = document.getElementById(map[k]);
-                        if(!dl) return;
-                        dl.innerHTML = arr.map(v=>`<option value="${v}"></option>`).join('');
-                    });
-                }
-                refreshAllDataLists();
 
                 // === 代車データ管理 ===
                 function loadDaishas(){ try{ return JSON.parse(localStorage.getItem('daishas')||'[]'); }catch(e){return[]} }
                 function saveDaishas(arr){ localStorage.setItem('daishas', JSON.stringify(arr)); }
 
+                function isAvailableDaisha(daisha){
+                    return daisha.status === '\u7a7a\u8eca';
+                }
+
+                function getDaishaStatusClass(status){
+                    if(status === '\u8cb8\u51fa\u4e2d') return 'loaned';
+                    if(status === '\u6574\u5099\u4e2d') return 'maintenance';
+                    return 'available';
+                }
+
+                function getDashboardSearchKeyword(){
+                    return (document.getElementById('dashboard-search')?.value || '').trim().toLowerCase();
+                }
+
+                function daishaMatchesKeyword(daisha, keyword){
+                    if(!keyword) return true;
+                    const historyText = (daisha.history || [])
+                        .map(h => [h.loanTo, h.loanDate, h.returnDate, h.loanNote, h.returnNote].join(' '))
+                        .join(' ');
+                    const searchable = [
+                        daisha.id,
+                        daisha.make,
+                        daisha.model,
+                        daisha.color,
+                        daisha.number,
+                        daisha.status,
+                        daisha.loanTo,
+                        daisha.loanDate,
+                        daisha.note,
+                        historyText
+                    ].join(' ').toLowerCase();
+                    return searchable.includes(keyword);
+                }
+
+                function renderDaishaSearchRows(items){
+                    if(items.length === 0){
+                        return '<div class="empty-state">該当する代車はありません</div>';
+                    }
+
+                    const rows = items.map(d => `
+                        <tr>
+                            <td><button type="button" class="clickable-car" onclick="showDaishaDetail('${escapeHtml(d.id)}')">${escapeHtml(d.make || '')}</button></td>
+                            <td>${escapeHtml(d.model || '')}</td>
+                            <td>${escapeHtml(d.number || '')}</td>
+                            <td>${escapeHtml(d.loanTo || '-')}</td>
+                            <td><span class="status ${getDaishaStatusClass(d.status)}">${escapeHtml(d.status || '')}</span></td>
+                        </tr>
+                    `).join('');
+
+                    return `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>代車</th>
+                                    <th>型式</th>
+                                    <th>ナンバー</th>
+                                    <th>貸出先</th>
+                                    <th>ステータス</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    `;
+                }
+
+                function getDepositSearchResults(keyword){
+                    const rows = Array.from(document.querySelectorAll('#deposit tbody tr'));
+                    return rows
+                        .map(row => Array.from(row.children).map(cell => cell.textContent.trim()))
+                        .filter(cells => cells.join(' ').toLowerCase().includes(keyword));
+                }
+
+                function renderDepositSearchRows(items){
+                    if(items.length === 0){
+                        return '<div class="empty-state">該当する預かり車両はありません</div>';
+                    }
+
+                    const rows = items.map(cells => `
+                        <tr>
+                            <td>${escapeHtml(cells[0] || '')}</td>
+                            <td>${escapeHtml(cells[1] || '')}</td>
+                            <td>${escapeHtml(cells[2] || '')}</td>
+                            <td>${escapeHtml(cells[3] || '')}</td>
+                            <td>${escapeHtml(cells[4] || '')}</td>
+                        </tr>
+                    `).join('');
+
+                    return `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>預かりID</th>
+                                    <th>顧客名</th>
+                                    <th>車両</th>
+                                    <th>入庫日</th>
+                                    <th>ステータス</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    `;
+                }
+
+                function renderSearchSection(title, count, html){
+                    return `
+                        <section class="panel" style="margin-bottom:16px">
+                            <h2 style="margin:0 0 12px">${escapeHtml(title)} (${count})</h2>
+                            ${html}
+                        </section>
+                    `;
+                }
+
+                function runDashboardSearch(){
+                    const keyword = getDashboardSearchKeyword();
+                    const content = document.getElementById('search-results-content');
+                    const summary = document.getElementById('search-results-summary');
+                    if(!content || !summary) return;
+
+                    if(!keyword){
+                        summary.textContent = 'キーワードを入力してください';
+                        content.innerHTML = '<section class="panel"><div class="empty-state">検索したい貸出先、代車、ナンバーなどを入力してください</div></section>';
+                        showView('search-results');
+                        return;
+                    }
+
+                    const daishas = loadDaishas();
+                    const availableResults = daishas.filter(d => isAvailableDaisha(d) && daishaMatchesKeyword(d, keyword));
+                    const daishaResults = daishas.filter(d => daishaMatchesKeyword(d, keyword));
+                    const depositResults = getDepositSearchResults(keyword);
+                    const totalCount = availableResults.length + daishaResults.length + depositResults.length;
+
+                    summary.textContent = `「${keyword}」の検索結果: ${totalCount}件`;
+                    content.innerHTML = [
+                        renderSearchSection('貸出可能代車', availableResults.length, renderDaishaSearchRows(availableResults)),
+                        renderSearchSection('代車管理', daishaResults.length, renderDaishaSearchRows(daishaResults)),
+                        renderSearchSection('預かり車両', depositResults.length, renderDepositSearchRows(depositResults))
+                    ].join('');
+                    showView('search-results');
+                }
+
+                function renderDaishaDashboardStats(daishas){
+                    const availableCount = daishas.filter(isAvailableDaisha).length;
+                    const availableEl = document.getElementById('dashboard-available-daisha-count');
+                    const totalEl = document.getElementById('dashboard-total-daisha-count');
+                    if(availableEl) availableEl.textContent = availableCount;
+                    if(totalEl) totalEl.textContent = daishas.length;
+                }
+
                 function renderDaishas(){
                     const lists = document.querySelectorAll('.daisha-list');
                     if(!lists || lists.length===0) return;
                     const daishas = loadDaishas();
-                    const rows = (daishas.length===0)
-                        ? '<tr><td colspan="6" style="color:var(--muted)">データがありません</td></tr>'
-                        : daishas.map(d=>{
-                            const cls = d.status === '貸出中' ? 'loaned' : (d.status === '返却済' ? 'returned' : 'available');
-                            return `<tr>
-                                <td>${escapeHtml(d.make||'')}</td>
+                    renderDaishaDashboardStats(daishas);
+                    lists.forEach(tb=>{
+                        const mode = tb.dataset.mode || 'overview';
+                        const displayDaishas = mode === 'overview' ? daishas.filter(isAvailableDaisha) : daishas;
+                        if(displayDaishas.length===0){
+                            const colspan = mode === 'manage' ? 7 : 6;
+                            tb.innerHTML = `<tr><td colspan="${colspan}" style="color:var(--muted)">データがありません</td></tr>`;
+                            return;
+                        }
+                        tb.innerHTML = displayDaishas.map(d=>{
+                            const cls = getDaishaStatusClass(d.status);
+                            let row = `<tr>
+                                <td><button type="button" class="clickable-car" onclick="showDaishaDetail('${escapeHtml(d.id)}')">${escapeHtml(d.make||'')}</button></td>
                                 <td>${escapeHtml(d.model||'')}</td>
                                 <td>${escapeHtml(d.color||'')}</td>
                                 <td>${escapeHtml(d.number||'')}</td>
                                 <td>${escapeHtml(d.shaken||'')}</td>
-                                <td><span class="status ${cls}">${escapeHtml(d.status||'')}</span></td>
-                            </tr>`;
+                                <td><span class="status ${cls}">${escapeHtml(d.status||'')}</span></td>`;
+                            if(mode === 'manage'){
+                                let actionButtons = '';
+                                if(d.status === '貸出中'){
+                                    actionButtons += `<button onclick="openDaishaReturn('${escapeHtml(d.id)}')" style="padding:4px 8px;border-radius:6px;border:0;background:#eef2ff;color:var(--accent);cursor:pointer;font-size:12px">返却登録</button>`;
+                                } else {
+                                    actionButtons += `<button onclick="openDaishaLoan('${escapeHtml(d.id)}')" style="padding:4px 8px;border-radius:6px;border:0;background:#eef2ff;color:var(--accent);cursor:pointer;font-size:12px">貸出登録</button>`;
+                                }
+                                row += `<td>${actionButtons}</td>`;
+                            }
+                            return row + '</tr>';
                         }).join('');
-                    lists.forEach(tb=> tb.innerHTML = rows);
+                    });
                 }
+
+                window._editDaishaId = null;
+                window.editDaisha = function(id){
+                    const daishas = loadDaishas();
+                    const daisha = daishas.find(x=>x.id===id);
+                    if(!daisha) return alert('対象が見つかりません');
+                    window._editDaishaId = id;
+                    document.getElementById('edit-daisha-make').value = daisha.make||'';
+                    document.getElementById('edit-daisha-model').value = daisha.model||'';
+                    document.getElementById('edit-daisha-color').value = daisha.color||'';
+                    document.getElementById('edit-daisha-number').value = daisha.number||'';
+                    document.getElementById('edit-daisha-shaken').value = daisha.shaken||'';
+                    document.getElementById('edit-daisha-status').value = daisha.status||'空車';
+                    document.getElementById('edit-daisha-note').value = daisha.note||'';
+                    document.getElementById('modal-daisha-edit').classList.add('active');
+                };
+
+                window.saveDaishaEdit = function(){
+                    const id = window._editDaishaId;
+                    const daishas = loadDaishas();
+                    const idx = daishas.findIndex(x=>x.id===id);
+                    if(idx < 0) return alert('対象が見つかりません');
+                    const make = document.getElementById('edit-daisha-make')?.value.trim();
+                    const number = document.getElementById('edit-daisha-number')?.value.trim();
+                    if(!make || !number){ alert('車種とナンバーを入力してください'); return; }
+                    daishas[idx] = {
+                        ...daishas[idx],
+                        make,
+                        model: document.getElementById('edit-daisha-model')?.value.trim(),
+                        color: document.getElementById('edit-daisha-color')?.value.trim(),
+                        number,
+                        shaken: document.getElementById('edit-daisha-shaken')?.value || '',
+                        status: document.getElementById('edit-daisha-status')?.value || '',
+                        note: document.getElementById('edit-daisha-note')?.value.trim()||''
+                    };
+                    saveDaishas(daishas);
+                    renderDaishas();
+                    if(window._currentDaishaDetailId === id){ showDaishaDetail(id); }
+                    document.getElementById('modal-daisha-edit').classList.remove('active');
+                    alert('代車情報を保存しました');
+                };
 
                 window.submitDaishaRegistration = function(){
                     const modal = document.getElementById('modal-daisha-register');
-                    const make = document.getElementById('daisha-make')?.value.trim();
-                    const model = document.getElementById('daisha-model')?.value.trim();
-                    const color = document.getElementById('daisha-color')?.value.trim();
-                    const number = document.getElementById('daisha-number')?.value.trim();
+                    const make = document.getElementById('daisha-make')?.value.trim()||'';
+                    const model = document.getElementById('daisha-model')?.value.trim()||'';
+                    const color = document.getElementById('daisha-color')?.value.trim()||'';
+                    const number = document.getElementById('daisha-number')?.value.trim()||'';
                     const shaken = document.getElementById('daisha-shaken')?.value || '';
                     const status = document.getElementById('daisha-status')?.value || '';
                     const note = document.getElementById('daisha-note')?.value?.trim()||'';
-                    if(!make || !number){ alert('車種とナンバーを入力してください'); return; }
                     const list = loadDaishas();
                     const entry = {id:'D-'+Date.now(), make, model, color, number, shaken, status, note};
                     list.unshift(entry);
@@ -698,10 +1151,250 @@
                     alert('代車を登録しました');
                 };
 
+                window._daishaLoanTargetId = null;
+                window._daishaReturnTargetId = null;
+
+                window.openDaishaLoan = function(id){
+                    const daishas = loadDaishas();
+                    const daisha = daishas.find(x=>x.id===id);
+                    if(!daisha) return alert('対象が見つかりません');
+                    if(daisha.status === '貸出中') return alert('既に貸出中です');
+                    window._daishaLoanTargetId = id;
+                    document.getElementById('daisha-loan-to').value = '';
+                    document.getElementById('daisha-loan-date').value = '';
+                    document.getElementById('daisha-loan-fuel').value = '';
+                    document.getElementById('daisha-loan-note').value = '';
+                    document.getElementById('modal-daisha-loan').classList.add('active');
+                };
+
+                window.submitDaishaLoan = function(){
+                    const id = window._daishaLoanTargetId;
+                    const daishas = loadDaishas();
+                    const idx = daishas.findIndex(x=>x.id===id);
+                    if(idx < 0) return alert('対象が見つかりません');
+                    const loanTo = document.getElementById('daisha-loan-to')?.value.trim();
+                    if(!loanTo){ alert('貸出先を入力してください'); document.getElementById('daisha-loan-to')?.focus(); return; }
+                    daishas[idx].status = '貸出中';
+                    daishas[idx].loanTo = loanTo;
+                    daishas[idx].loanDate = document.getElementById('daisha-loan-date')?.value || '';
+                    daishas[idx].loanFuel = document.getElementById('daisha-loan-fuel')?.value.trim() || '';
+                    daishas[idx].loanNote = document.getElementById('daisha-loan-note')?.value.trim() || '';
+                    daishas[idx].returnDate = '';
+                    daishas[idx].returnFuel = '';
+                    daishas[idx].returnNote = '';
+
+                    if(!daishas[idx].history) daishas[idx].history = [];
+                    daishas[idx].history.push({
+                        loanTo: daishas[idx].loanTo,
+                        loanDate: daishas[idx].loanDate,
+                        returnDate: '',
+                        loanFuel: daishas[idx].loanFuel,
+                        loanNote: daishas[idx].loanNote
+                    });
+
+                    saveDaishas(daishas);
+                    renderDaishas();
+                    if(window._currentDaishaDetailId === id){ showDaishaDetail(id); }
+                    document.getElementById('modal-daisha-loan').classList.remove('active');
+                    alert('貸出登録が完了しました');
+                };
+
+                window.openDaishaReturn = function(id){
+                    const daishas = loadDaishas();
+                    const daisha = daishas.find(x=>x.id===id);
+                    if(!daisha) return alert('対象が見つかりません');
+                    if(daisha.status !== '貸出中') return alert('貸出中の代車を選択してください');
+                    window._daishaReturnTargetId = id;
+                    document.getElementById('daisha-return-date').value = '';
+                    document.getElementById('daisha-return-fuel').value = daisha.loanFuel || '';
+                    document.getElementById('daisha-return-note').value = '';
+                    document.getElementById('modal-daisha-return').classList.add('active');
+                };
+
+                window.submitDaishaReturn = function(){
+                    const id = window._daishaReturnTargetId;
+                    const daishas = loadDaishas();
+                    const idx = daishas.findIndex(x=>x.id===id);
+                    if(idx < 0) return alert('対象が見つかりません');
+                    const returnDate = document.getElementById('daisha-return-date')?.value;
+                    if(!returnDate){ alert('返却日を入力してください'); document.getElementById('daisha-return-date')?.focus(); return; }
+                    daishas[idx].status = '空車';
+                    daishas[idx].returnDate = returnDate;
+                    daishas[idx].returnFuel = document.getElementById('daisha-return-fuel')?.value.trim() || '';
+                    daishas[idx].returnNote = document.getElementById('daisha-return-note')?.value.trim() || '';
+
+                    if(daishas[idx].history && daishas[idx].history.length > 0){
+                        const lastHistory = daishas[idx].history[daishas[idx].history.length - 1];
+                        if(!lastHistory.returnDate){
+                            lastHistory.returnDate = returnDate;
+                            lastHistory.returnFuel = daishas[idx].returnFuel;
+                            lastHistory.returnNote = daishas[idx].returnNote;
+                        }
+                    }
+
+                    saveDaishas(daishas);
+                    renderDaishas();
+                    if(window._currentDaishaDetailId === id){ showDaishaDetail(id); }
+                    document.getElementById('modal-daisha-return').classList.remove('active');
+                    alert('返却登録が完了しました');
+                };
+
+
+                window._currentDaishaDetailId = null;
+
+                window.showDaishaDetail = function(id){
+                    const daishas = loadDaishas();
+                    const daisha = daishas.find(x => x.id === id);
+                    if(!daisha) return alert('車両が見つかりません');
+
+                    window._currentDaishaDetailId = id;
+
+                    document.getElementById('detail-daisha-title').textContent = daisha.make || '車両詳細';
+                    document.getElementById('detail-daisha-make').textContent = daisha.make || '';
+                    document.getElementById('detail-daisha-model').textContent = daisha.model || '';
+                    document.getElementById('detail-daisha-color').textContent = daisha.color || '';
+                    document.getElementById('detail-daisha-number').textContent = daisha.number || '';
+                    document.getElementById('detail-daisha-shaken').textContent = daisha.shaken || '';
+                    document.getElementById('detail-daisha-status').innerHTML = `<span class="status ${getDaishaStatusClass(daisha.status)}">${escapeHtml(daisha.status || '')}</span>`;
+                    document.getElementById('detail-daisha-loan-to').textContent = daisha.loanTo || '-';
+                    document.getElementById('detail-daisha-loan-date').textContent = daisha.loanDate || '-';
+                    document.getElementById('detail-daisha-note').textContent = daisha.note || '-';
+
+                    document.getElementById('detail-daisha-edit-btn').onclick = function(){
+                        editDaisha(id);
+                    };
+
+                    const loanBtn = document.getElementById('detail-daisha-loan-btn');
+                    const returnBtn = document.getElementById('detail-daisha-return-btn');
+
+                    if(daisha.status === '貸出中'){
+                        loanBtn.style.display = 'none';
+                        returnBtn.style.display = 'inline-block';
+                        returnBtn.onclick = function(){ openDaishaReturn(id); };
+                    }else{
+                        loanBtn.style.display = 'inline-block';
+                        returnBtn.style.display = 'none';
+                        loanBtn.onclick = function(){ openDaishaLoan(id); };
+                    }
+
+                    renderDaishaHistory(daisha);
+
+                    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                    document.getElementById('daisha-detail').classList.add('active');
+                    document.querySelectorAll('.nav li').forEach(li=>li.classList.toggle('active', li.dataset.view==='daisha'));
+                };
+
+                window.showDaishaList = function(){
+                    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                    document.getElementById('daisha').classList.add('active');
+                    document.querySelectorAll('.nav li').forEach(li=>li.classList.toggle('active', li.dataset.view==='daisha'));
+                };
+
+                function renderDaishaHistory(daisha){
+                    const historyBox = document.getElementById('detail-daisha-history');
+                    const histories = daisha.history || [];
+
+                    if(histories.length === 0){
+                        historyBox.innerHTML = '<div style="color:var(--muted)">貸出履歴はまだありません</div>';
+                        return;
+                    }
+
+                    historyBox.innerHTML = histories
+                        .slice()
+                        .reverse()
+                        .map(h => `
+                            <div class="history-card">
+                                <div><strong>貸出先：</strong>${escapeHtml(h.loanTo || '')}</div>
+                                <div><strong>貸出日：</strong>${escapeHtml(h.loanDate || '')}</div>
+                                <div><strong>返却日：</strong>${escapeHtml(h.returnDate || '未返却')}</div>
+                                ${h.loanFuel ? `<div><strong>貸出時燃料：</strong>${escapeHtml(h.loanFuel)}</div>` : ''}
+                                ${h.returnFuel ? `<div><strong>返却時燃料：</strong>${escapeHtml(h.returnFuel)}</div>` : ''}
+                                ${h.loanNote ? `<div><strong>貸出備考：</strong>${escapeHtml(h.loanNote)}</div>` : ''}
+                                ${h.returnNote ? `<div><strong>返却備考：</strong>${escapeHtml(h.returnNote)}</div>` : ''}
+                            </div>
+                        `)
+                        .join('');
+                }
+
                 // 初期描画 for daisha
                 renderDaishas();
 
                 // === 貸出データ管理 ===
+                function normalizeDaishaDetailLabels(){
+                    const detail = document.getElementById('daisha-detail');
+                    if(!detail) return;
+
+                    const labels = [
+                        '車両名',
+                        '型式',
+                        '色',
+                        'ナンバー',
+                        '車検満了日',
+                        '貸出状況',
+                        '現在の貸出先',
+                        '現在の貸出日',
+                        '備考'
+                    ];
+                    detail.querySelectorAll('.detail-item label').forEach((label, index)=>{
+                        if(labels[index]) label.textContent = labels[index];
+                    });
+
+                    const backBtn = detail.querySelector('.back-btn');
+                    if(backBtn) backBtn.textContent = '代車一覧に戻る';
+                    const editBtn = document.getElementById('detail-daisha-edit-btn');
+                    if(editBtn) editBtn.textContent = '編集';
+                    const loanBtn = document.getElementById('detail-daisha-loan-btn');
+                    if(loanBtn) loanBtn.textContent = '貸出登録';
+                    const returnBtn = document.getElementById('detail-daisha-return-btn');
+                    if(returnBtn) returnBtn.textContent = '返却登録';
+                    const historyTitle = document.querySelector('#detail-daisha-history')?.previousElementSibling;
+                    if(historyTitle) historyTitle.textContent = '貸出履歴';
+                }
+
+                renderDaishaHistory = function(daisha){
+                    const historyBox = document.getElementById('detail-daisha-history');
+                    if(!historyBox) return;
+
+                    const histories = daisha.history || [];
+                    if(histories.length === 0){
+                        historyBox.innerHTML = '<div class="empty-state">貸出履歴はまだありません</div>';
+                        return;
+                    }
+
+                    const rows = histories
+                        .slice()
+                        .reverse()
+                        .map(h => `
+                            <tr>
+                                <td data-label="貸出先">${escapeHtml(h.loanTo || '-')}</td>
+                                <td data-label="貸出日">${escapeHtml(h.loanDate || '-')}</td>
+                                <td data-label="返却日">${escapeHtml(h.returnDate || '未返却')}</td>
+                                <td data-label="貸出時燃料">${escapeHtml(h.loanFuel || '-')}</td>
+                                <td data-label="返却時燃料">${escapeHtml(h.returnFuel || '-')}</td>
+                                <td data-label="備考">${escapeHtml([h.loanNote, h.returnNote].filter(Boolean).join(' / ') || '-')}</td>
+                            </tr>
+                        `)
+                        .join('');
+
+                    historyBox.innerHTML = `
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>貸出先</th>
+                                    <th>貸出日</th>
+                                    <th>返却日</th>
+                                    <th>貸出時燃料</th>
+                                    <th>返却時燃料</th>
+                                    <th>備考</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    `;
+                };
+
+                normalizeDaishaDetailLabels();
+
                 function loadLoans(){
                     try{ return JSON.parse(localStorage.getItem('loans')||'[]'); }catch(e){return[]}
                 }
