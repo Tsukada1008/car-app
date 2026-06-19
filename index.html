@@ -821,12 +821,41 @@
                 function syncStoreToCloud(key, data){
                     if(!isCloudSyncEnabled()) return;
 
+                    if(key.startsWith('options-')){
+                        syncStoreToCloudByJsonp(key, data);
+                        return;
+                    }
+
                     fetch(GOOGLE_SHEETS_WEB_APP_URL, {
                         method: 'POST',
                         mode: 'no-cors',
                         headers: {'Content-Type': 'text/plain;charset=utf-8'},
                         body: JSON.stringify({action: 'save', key, data})
                     }).catch(err => console.warn('Google Sheets sync failed:', err));
+                }
+
+                function syncStoreToCloudByJsonp(key, data){
+                    const callbackName = `cloudSave_${key.replace(/[^a-z0-9_]/gi, '_')}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+                    const script = document.createElement('script');
+                    const cleanup = () => {
+                        delete window[callbackName];
+                        script.remove();
+                    };
+
+                    window[callbackName] = () => cleanup();
+                    script.onerror = () => {
+                        cleanup();
+                        console.warn('Google Sheets option sync failed:', key);
+                    };
+
+                    const url = new URL(GOOGLE_SHEETS_WEB_APP_URL);
+                    url.searchParams.set('action', 'save');
+                    url.searchParams.set('key', key);
+                    url.searchParams.set('data', JSON.stringify(data));
+                    url.searchParams.set('callback', callbackName);
+                    url.searchParams.set('_', Date.now());
+                    script.src = url.toString();
+                    document.head.appendChild(script);
                 }
 
                 function loadStoreFromCloud(key){

@@ -4,10 +4,21 @@ function doGet(e) {
   const params = e.parameter || {};
   const callback = params.callback || 'callback';
   const key = params.key || '';
+  let data = key ? loadValue_(key) : loadAll_();
+
+  if (params.action === 'save' && key) {
+    try {
+      data = JSON.parse(params.data || '[]');
+    } catch (err) {
+      data = [];
+    }
+    saveValue_(key, Array.isArray(data) ? data : []);
+  }
+
   const payload = {
     ok: true,
     key: key,
-    data: key ? loadValue_(key) : loadAll_()
+    data: data
   };
 
   return ContentService
