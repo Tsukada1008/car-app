@@ -863,9 +863,10 @@
                 async function hydrateCloudData(){
                     if(!isCloudSyncEnabled()) return;
 
-                    const [daishas, loans] = await Promise.all([
+                    const [daishas, loans, ...optionSets] = await Promise.all([
                         loadStoreFromCloud('daishas'),
-                        loadStoreFromCloud('loans')
+                        loadStoreFromCloud('loans'),
+                        ...CONFIG_KEYS.map(key => loadStoreFromCloud(`options-${key}`))
                     ]);
 
                     if(daishas){
@@ -875,6 +876,20 @@
                     if(loans){
                         localStorage.setItem('loans', JSON.stringify(loans));
                         renderLoans();
+                    }
+                    optionSets.forEach((opts, index)=>{
+                        if(!opts) return;
+                        const key = CONFIG_KEYS[index];
+                        const localOpts = JSON.parse(localStorage.getItem(`options-${key}`)||'[]');
+                        const merged = normalizeOptions(key, [...localOpts, ...opts]);
+                        localStorage.setItem(`options-${key}`, JSON.stringify(merged));
+                        if(JSON.stringify(merged) !== JSON.stringify(opts)){
+                            syncStoreToCloud(`options-${key}`, merged);
+                        }
+                    });
+                    if(optionSets.some(Boolean)){
+                        refreshAllDataLists();
+                        renderAllLists();
                     }
                 }
 
@@ -1024,6 +1039,13 @@
                     select.value = normalizedValue;
                 }
 
+                function saveOptions(key, opts, shouldSync = true){
+                    const normalized = normalizeOptions(key, opts);
+                    localStorage.setItem(`options-${key}`, JSON.stringify(normalized));
+                    if(shouldSync) syncStoreToCloud(`options-${key}`, normalized);
+                    return normalized;
+                }
+
                 // 設定画面のリストを表示
                 function renderAllLists(){
                     CONFIG_KEYS.forEach(key=>{
@@ -1043,7 +1065,7 @@
                     const opts = JSON.parse(localStorage.getItem(`options-${key}`)||'[]');
                     if(opts.includes(value)) return alert('すでに登録済みです');
                     opts.push(value);
-                    localStorage.setItem(`options-${key}`, JSON.stringify(opts));
+                    saveOptions(key, opts);
                     input.value = '';
                     refreshAllDataLists();
                     renderAllLists();
@@ -1055,7 +1077,7 @@
                     const idx = opts.indexOf(value);
                     if(idx>=0){
                         opts.splice(idx, 1);
-                        localStorage.setItem(`options-${key}`, JSON.stringify(opts));
+                        saveOptions(key, opts);
                         refreshAllDataLists();
                         renderAllLists();
                     }
