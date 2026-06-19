@@ -437,6 +437,7 @@
                             <div class="detail-item"><label>備考</label><div id="detail-deposit-note"></div></div>
                             <div class="detail-item"><label>ステータス</label><div id="detail-deposit-status"></div></div>
                             <div class="detail-item"><label>納車日</label><div id="detail-deposit-delivered-at"></div></div>
+                            <div class="detail-item"><label>返却時燃料</label><div id="detail-deposit-return-fuel"></div></div>
                         </div>
                         <div class="detail-actions" style="margin-top:16px">
                             <button class="primary" id="deposit-detail-edit-btn" type="button">編集</button>
@@ -894,6 +895,36 @@
                 <div class="modal-footer">
                     <button data-modal-close>キャンセル</button>
                     <button class="primary" onclick="saveDepositEdit()">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- モーダル: 預かり納車 -->
+        <div id="modal-deposit-delivery" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>納車登録</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>納車日</label>
+                        <input type="date" id="deposit-delivery-date">
+                    </div>
+                    <div class="form-group">
+                        <label>返却時燃料</label>
+                        <select id="deposit-delivery-fuel">
+                            <option value="">選択してください</option>
+                            <option>F</option>
+                            <option>3/4</option>
+                            <option>1/2</option>
+                            <option>1/4</option>
+                            <option>E</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button data-modal-close>キャンセル</button>
+                    <button class="primary" onclick="submitDepositDelivery()">納車済みにする</button>
                 </div>
             </div>
         </div>
@@ -1939,6 +1970,7 @@
 
                 let activeDepositDetailId = '';
                 let editingDepositId = '';
+                let deliveryDepositId = '';
 
                 function loadDeposits(){
                     try{ return JSON.parse(localStorage.getItem('deposits')||'[]'); }catch(e){return[]}
@@ -2091,7 +2123,7 @@
                     return `${year}-${month}-${day}`;
                 }
 
-                function completeDepositDaishaLoan(deposit, returnDate){
+                function completeDepositDaishaLoan(deposit, returnDate, returnFuel = ''){
                     if(!deposit.daishaId) return;
                     const daishas = loadDaishas();
                     const daisha = daishas.find(d => d.id === deposit.daishaId);
@@ -2101,13 +2133,14 @@
                     const history = daisha.history.slice().reverse().find(h => h.source === 'deposit' && h.depositId === deposit.id && !h.returnDate);
                     if(history){
                         history.returnDate = returnDate;
+                        history.returnFuel = returnFuel;
                     }else if(daisha.status === '\u8cb8\u51fa\u4e2d' && daisha.loanTo === formatCustomerName(deposit.customer)){
                         daisha.history.push({
                             loanTo: daisha.loanTo,
                             loanDate: daisha.loanDate || deposit.date || '',
                             returnDate,
                             loanFuel: daisha.loanFuel || deposit.fuel || '',
-                            returnFuel: '',
+                            returnFuel,
                             loanNote: daisha.loanNote || '',
                             returnNote: '',
                             source: 'deposit',
@@ -2184,6 +2217,7 @@
                     document.getElementById('detail-deposit-note').textContent = deposit.note || '-';
                     document.getElementById('detail-deposit-status').innerHTML = `<span class="status available">${escapeHtml(normalizeDepositStatus(deposit.status))}</span>`;
                     document.getElementById('detail-deposit-delivered-at').textContent = deposit.deliveredAt || '-';
+                    document.getElementById('detail-deposit-return-fuel').textContent = deposit.returnFuel || '-';
                     const editButton = document.getElementById('deposit-detail-edit-btn');
                     if(editButton) editButton.onclick = () => openDepositEdit(id);
 
@@ -2219,22 +2253,35 @@
 
                 window.deliverDeposit = function(id){
                     const deposits = loadDeposits();
-                    const idx = deposits.findIndex(d => d.id === id);
-                    if(idx < 0) return alert('預かり車両が見つかりません');
-                    const deposit = deposits[idx];
-                    const label = [formatCustomerName(deposit.customer), deposit.car, deposit.number].filter(Boolean).join(' / ') || 'この預かり車両';
-                    if(!confirm(`${label} を納車済みにしますか？`)) return;
+                    const deposit = deposits.find(d => d.id === id);
+                    if(!deposit) return alert('預かり車両が見つかりません');
+                    deliveryDepositId = id;
+                    document.getElementById('deposit-delivery-date').value = deposit.deliveredAt || getTodayDateString();
+                    document.getElementById('deposit-delivery-fuel').value = deposit.returnFuel || '';
+                    document.getElementById('modal-deposit-delivery')?.classList.add('active');
+                };
 
-                    const deliveredAt = getTodayDateString();
+                window.submitDepositDelivery = function(){
+                    if(!deliveryDepositId) return;
+                    const deposits = loadDeposits();
+                    const idx = deposits.findIndex(d => d.id === deliveryDepositId);
+                    if(idx < 0) return alert('預かり車両が見つかりません');
+
+                    const deposit = deposits[idx];
+                    const deliveredAt = document.getElementById('deposit-delivery-date')?.value || getTodayDateString();
+                    const returnFuel = document.getElementById('deposit-delivery-fuel')?.value || '';
                     deposits[idx] = {
                         ...deposit,
                         status: '納車済み',
-                        deliveredAt
+                        deliveredAt,
+                        returnFuel
                     };
                     saveDeposits(deposits);
-                    completeDepositDaishaLoan(deposit, deliveredAt);
+                    completeDepositDaishaLoan(deposit, deliveredAt, returnFuel);
                     renderDeposits();
-                    if(activeDepositDetailId === id) showDepositDetail(id);
+                    if(activeDepositDetailId === deliveryDepositId) showDepositDetail(deliveryDepositId);
+                    document.getElementById('modal-deposit-delivery')?.classList.remove('active');
+                    deliveryDepositId = '';
                     alert('納車済みとして履歴に保存しました');
                 };
 
@@ -2311,12 +2358,13 @@
                         payment: getSelectedValues('edit-deposit-payment'),
                         status: nextStatus,
                         deliveredAt: nextStatus === '納車済み' ? (deposits[idx].deliveredAt || getTodayDateString()) : '',
+                        returnFuel: nextStatus === '納車済み' ? (deposits[idx].returnFuel || document.getElementById('edit-deposit-fuel')?.value || '') : '',
                         note: document.getElementById('edit-deposit-note')?.value.trim() || ''
                     };
 
                     saveDeposits(deposits);
                     if(isDeliveredDeposit(deposits[idx])){
-                        completeDepositDaishaLoan(deposits[idx], deposits[idx].deliveredAt);
+                        completeDepositDaishaLoan(deposits[idx], deposits[idx].deliveredAt, deposits[idx].returnFuel || '');
                     }else{
                         syncDepositDaishaLink(deposits[idx], oldDaishaId);
                     }
