@@ -804,6 +804,81 @@
 
         <script>
             (function(){
+                const DEFAULT_GOOGLE_SHEETS_WEB_APP_URL = '';
+                const GOOGLE_SHEETS_WEB_APP_URL = (
+                    localStorage.getItem('googleSheetsWebAppUrl') ||
+                    DEFAULT_GOOGLE_SHEETS_WEB_APP_URL
+                ).trim();
+
+                function isCloudSyncEnabled(){
+                    return GOOGLE_SHEETS_WEB_APP_URL.length > 0;
+                }
+
+                function syncStoreToCloud(key, data){
+                    if(!isCloudSyncEnabled()) return;
+
+                    fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: {'Content-Type': 'text/plain;charset=utf-8'},
+                        body: JSON.stringify({action: 'save', key, data})
+                    }).catch(err => console.warn('Google Sheets sync failed:', err));
+                }
+
+                function loadStoreFromCloud(key){
+                    if(!isCloudSyncEnabled()) return Promise.resolve(null);
+
+                    return new Promise(resolve => {
+                        const callbackName = `cloudSync_${key}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+                        const script = document.createElement('script');
+                        const cleanup = () => {
+                            delete window[callbackName];
+                            script.remove();
+                        };
+
+                        window[callbackName] = payload => {
+                            cleanup();
+                            resolve(payload && Array.isArray(payload.data) ? payload.data : null);
+                        };
+
+                        script.onerror = () => {
+                            cleanup();
+                            resolve(null);
+                        };
+
+                        const url = new URL(GOOGLE_SHEETS_WEB_APP_URL);
+                        url.searchParams.set('action', 'load');
+                        url.searchParams.set('key', key);
+                        url.searchParams.set('callback', callbackName);
+                        url.searchParams.set('_', Date.now());
+                        script.src = url.toString();
+                        document.head.appendChild(script);
+                    });
+                }
+
+                async function hydrateCloudData(){
+                    if(!isCloudSyncEnabled()) return;
+
+                    const [daishas, loans] = await Promise.all([
+                        loadStoreFromCloud('daishas'),
+                        loadStoreFromCloud('loans')
+                    ]);
+
+                    if(daishas){
+                        localStorage.setItem('daishas', JSON.stringify(daishas));
+                        renderDaishas();
+                    }
+                    if(loans){
+                        localStorage.setItem('loans', JSON.stringify(loans));
+                        renderLoans();
+                    }
+                }
+
+                window.setGoogleSheetsWebAppUrl = function(url){
+                    localStorage.setItem('googleSheetsWebAppUrl', String(url || '').trim());
+                    alert('Google Sheets Web App URLを保存しました。ページを再読み込みしてください。');
+                };
+
                 function showView(id){
                     document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id===id));
                     document.querySelectorAll('.nav li').forEach(li=>li.classList.toggle('active', li.dataset.view===id));
@@ -927,7 +1002,10 @@
 
                 // === 代車データ管理 ===
                 function loadDaishas(){ try{ return JSON.parse(localStorage.getItem('daishas')||'[]'); }catch(e){return[]} }
-                function saveDaishas(arr){ localStorage.setItem('daishas', JSON.stringify(arr)); }
+                function saveDaishas(arr){
+                    localStorage.setItem('daishas', JSON.stringify(arr));
+                    syncStoreToCloud('daishas', arr);
+                }
 
                 function isAvailableDaisha(daisha){
                     return daisha.status === '\u7a7a\u8eca';
@@ -1419,7 +1497,10 @@
                 function loadLoans(){
                     try{ return JSON.parse(localStorage.getItem('loans')||'[]'); }catch(e){return[]}
                 }
-                function saveLoans(arr){ localStorage.setItem('loans', JSON.stringify(arr)); }
+                function saveLoans(arr){
+                    localStorage.setItem('loans', JSON.stringify(arr));
+                    syncStoreToCloud('loans', arr);
+                }
 
                 function renderLoans(){
                     const tbody = document.getElementById('dealer-tbody');
@@ -1620,6 +1701,7 @@
 
                 // 初期描画
                 renderLoans();
+                hydrateCloudData();
             })();
         </script>
     </body>
