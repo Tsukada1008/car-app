@@ -789,9 +789,9 @@
                     <div class="form-group">
                         <label>ステータス</label>
                         <select id="deposit-status">
-                            <option>見積待ち</option>
+                            <option selected>見積待ち</option>
                             <option>部品待ち</option>
-                            <option selected>作業待ち</option>
+                            <option>作業待ち</option>
                             <option>確認/車検待ち</option>
                             <option>納車待ち</option>
                         </select>
@@ -2415,7 +2415,7 @@
                         }else if(el.classList.contains('checkbox-group')){
                             Array.from(el.querySelectorAll('input[type="checkbox"]')).forEach(input => input.checked = false);
                         }else if(id === 'deposit-status'){
-                            el.value = '作業待ち';
+                            el.value = '見積待ち';
                         }else{
                             el.value = '';
                         }
