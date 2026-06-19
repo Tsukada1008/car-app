@@ -875,6 +875,7 @@
                     }
                     if(loans){
                         localStorage.setItem('loans', JSON.stringify(loans));
+                        importUsersFromLoans(loans);
                         renderLoans();
                     }
                     optionSets.forEach((opts, index)=>{
@@ -1046,6 +1047,45 @@
                     return normalized;
                 }
 
+                function getOptions(key){
+                    return JSON.parse(localStorage.getItem(`options-${key}`)||'[]');
+                }
+
+                function addOptionValue(key, value, shouldSync = true){
+                    const cleanValue = normalizeOptionValue(String(value || '').trim());
+                    if(!cleanValue) return;
+                    const opts = getOptions(key);
+                    if(opts.includes(cleanValue)) return;
+                    opts.push(cleanValue);
+                    saveOptions(key, opts, shouldSync);
+                    refreshAllDataLists();
+                    renderAllLists();
+                }
+
+                function syncAllOptionsToCloud(){
+                    if(!isCloudSyncEnabled()) return;
+                    CONFIG_KEYS.forEach(key=>{
+                        syncStoreToCloud(`options-${key}`, normalizeOptions(key, getOptions(key)));
+                    });
+                }
+
+                function importUsersFromLoans(loans, shouldSync = true){
+                    let changed = false;
+                    const opts = getOptions('user');
+                    loans.forEach(loan=>{
+                        const user = String(loan.user || '').trim();
+                        if(user && !opts.includes(user)){
+                            opts.push(user);
+                            changed = true;
+                        }
+                    });
+                    if(changed){
+                        saveOptions('user', opts, shouldSync);
+                        refreshAllDataLists();
+                        renderAllLists();
+                    }
+                }
+
                 // 設定画面のリストを表示
                 function renderAllLists(){
                     CONFIG_KEYS.forEach(key=>{
@@ -1062,13 +1102,10 @@
                     const input = document.getElementById(`input-${key}`);
                     const value = input?.value?.trim();
                     if(!value) return alert('入力してください');
-                    const opts = JSON.parse(localStorage.getItem(`options-${key}`)||'[]');
+                    const opts = getOptions(key);
                     if(opts.includes(value)) return alert('すでに登録済みです');
-                    opts.push(value);
-                    saveOptions(key, opts);
+                    addOptionValue(key, value);
                     input.value = '';
-                    refreshAllDataLists();
-                    renderAllLists();
                 };
 
                 // グローバル関数: オプション削除
@@ -1585,6 +1622,7 @@
                 }
                 function saveLoans(arr){
                     localStorage.setItem('loans', JSON.stringify(arr));
+                    importUsersFromLoans(arr);
                     syncStoreToCloud('loans', arr);
                 }
 
