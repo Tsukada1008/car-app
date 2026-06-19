@@ -623,7 +623,7 @@
                     </div>
                     <div class="form-group">
                         <label>回送目的</label>
-                        <input type="text" id="loan-purpose" list="dl-purpose" placeholder="特定整備、中古新規、予備検枻" required>
+                        <select id="loan-purpose" required></select>
                     </div>
                     <div class="form-group">
                         <label>車名</label>
@@ -635,15 +635,15 @@
                     </div>
                     <div class="form-group">
                         <label>発地</label>
-                        <input type="text" id="loan-from" list="dl-from" placeholder="Museuм、下諏訪、岡谷、松本陸運局" required>
+                        <select id="loan-from" required></select>
                     </div>
                     <div class="form-group">
                         <label>着地</label>
-                        <input type="text" id="loan-to" list="dl-to" placeholder="Museuм、下諏訪、岡谷、松本陸運局" required>
+                        <select id="loan-to" required></select>
                     </div>
                     <div class="form-group">
                         <label>使用者</label>
-                        <input type="text" id="loan-user" list="dl-user" placeholder="山田太郎、茶木一郎" required>
+                        <select id="loan-user" required></select>
                     </div>
                     <div class="form-group">
                         <label>貸渡時間</label>
@@ -732,7 +732,7 @@
                     </div>
                     <div class="form-group">
                         <label>回送目的</label>
-                        <input type="text" id="edit-loan-purpose" list="dl-purpose" required>
+                        <select id="edit-loan-purpose" required></select>
                     </div>
                     <div class="form-group">
                         <label>車名</label>
@@ -744,15 +744,15 @@
                     </div>
                     <div class="form-group">
                         <label>発地</label>
-                        <input type="text" id="edit-loan-from" list="dl-from" required>
+                        <select id="edit-loan-from" required></select>
                     </div>
                     <div class="form-group">
                         <label>着地</label>
-                        <input type="text" id="edit-loan-to" list="dl-to" required>
+                        <select id="edit-loan-to" required></select>
                     </div>
                     <div class="form-group">
                         <label>使用者</label>
-                        <input type="text" id="edit-loan-user" list="dl-user" required>
+                        <select id="edit-loan-user" required></select>
                     </div>
                     <div class="form-group">
                         <label>貸渡時間</label>
@@ -931,6 +931,12 @@
                 // === 設定管理機能 ===
                 const CONFIG_KEYS = ['purpose', 'from', 'to', 'user'];
                 const DATALIST_IDS = {purpose: 'dl-purpose', from: 'dl-from', to: 'dl-to', user: 'dl-user'};
+                const SELECT_IDS = {
+                    purpose: ['loan-purpose', 'edit-loan-purpose'],
+                    from: ['loan-from', 'edit-loan-from'],
+                    to: ['loan-to', 'edit-loan-to'],
+                    user: ['loan-user', 'edit-loan-user']
+                };
 
                 // LocalStorage から初期化
                 function initSettings(){
@@ -957,7 +963,27 @@
                         if(datalist){
                             datalist.innerHTML = opts.map(opt=>`<option value="${opt}"></option>`).join('');
                         }
+                        (SELECT_IDS[key] || []).forEach(id=>{
+                            const select = document.getElementById(id);
+                            if(!select) return;
+                            const currentValue = select.value;
+                            select.innerHTML = [
+                                '<option value="">選択してください</option>',
+                                ...opts.map(opt=>`<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`)
+                            ].join('');
+                            if(currentValue) setSelectValue(select, currentValue);
+                        });
                     });
+                }
+
+                function setSelectValue(selectOrId, value){
+                    const select = typeof selectOrId === 'string' ? document.getElementById(selectOrId) : selectOrId;
+                    if(!select) return;
+                    const normalizedValue = String(value || '');
+                    if(normalizedValue && !Array.from(select.options).some(opt => opt.value === normalizedValue)){
+                        select.appendChild(new Option(normalizedValue, normalizedValue));
+                    }
+                    select.value = normalizedValue;
                 }
 
                 // 設定画面のリストを表示
@@ -1610,12 +1636,12 @@
                     if(!loan) return alert('対象が見つかりません');
                     window._editLoanId = id;
                     document.getElementById('edit-loan-date').value = loan.date||'';
-                    document.getElementById('edit-loan-purpose').value = loan.purpose||'';
+                    setSelectValue('edit-loan-purpose', loan.purpose||'');
                     document.getElementById('edit-loan-car').value = loan.car||'';
                     document.getElementById('edit-loan-vin').value = loan.vin||'';
-                    document.getElementById('edit-loan-from').value = loan.from||'';
-                    document.getElementById('edit-loan-to').value = loan.to||'';
-                    document.getElementById('edit-loan-user').value = loan.user||'';
+                    setSelectValue('edit-loan-from', loan.from||'');
+                    setSelectValue('edit-loan-to', loan.to||'');
+                    setSelectValue('edit-loan-user', loan.user||'');
                     document.getElementById('edit-loan-start').value = loan.start||'';
                     document.getElementById('edit-loan-end').value = loan.returnedAt||'';
                     document.getElementById('modal-loan-edit').classList.add('active');
