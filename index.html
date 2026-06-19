@@ -100,9 +100,30 @@
             .history-table{min-width:760px}
             .history-table td{vertical-align:top}
             .empty-state{color:var(--muted);padding:10px 0}
-            @media(max-width:800px){
+            @media(max-width:1024px){
                 .app{display:block}
-                .sidenav{display:none}
+                .sidenav{
+                    position:sticky;
+                    top:0;
+                    z-index:50;
+                    width:100%;
+                    flex:none;
+                    padding:12px 14px;
+                }
+                .sidenav h2{font-size:15px;margin:0 0 10px}
+                .nav{
+                    display:flex;
+                    gap:8px;
+                    overflow-x:auto;
+                    padding-bottom:2px;
+                    -webkit-overflow-scrolling:touch;
+                }
+                .nav li{
+                    flex:0 0 auto;
+                    white-space:nowrap;
+                    margin-bottom:0;
+                    padding:8px 10px;
+                }
                 .main{padding:14px}
                 .header{align-items:stretch;flex-direction:column;gap:12px}
                 .search{align-items:stretch;flex-direction:column;width:100%}
