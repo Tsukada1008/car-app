@@ -2019,8 +2019,18 @@
                     return value;
                 }
 
+                const DEPOSIT_STATUS_OPTIONS = ['見積待ち', '部品待ち', '作業待ち', '確認/車検待ち', '納車待ち', '納車済み'];
+
                 function isDeliveredDeposit(deposit){
                     return normalizeDepositStatus(deposit.status) === '納車済み';
+                }
+
+                function renderDepositStatusSelect(id, status){
+                    const currentStatus = normalizeDepositStatus(status);
+                    const options = DEPOSIT_STATUS_OPTIONS.map(option => (
+                        `<option value="${escapeHtml(option)}"${option === currentStatus ? ' selected' : ''}>${escapeHtml(option)}</option>`
+                    )).join('');
+                    return `<select onchange="updateDepositStatus('${escapeHtml(id)}', this.value)" style="width:100%;min-width:130px;padding:6px;border-radius:6px;border:1px solid #d1d5db;font-size:13px">${options}</select>`;
                 }
 
                 function syncDepositDaishaLink(deposit, oldDaishaId = ''){
@@ -2129,7 +2139,7 @@
                                 <td><button type="button" class="clickable-car" onclick="showDepositDetail('${escapeHtml(d.id || '')}')">${escapeHtml(formatCustomerName(d.customer))}</button><br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.tel || '')}</span></td>
                                 <td>${escapeHtml([d.car, d.number].filter(Boolean).join(' / '))}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.mileage ? d.mileage + ' km' : '')}</span></td>
                                 <td>${escapeHtml(d.date || '')}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.daishaId ? '代車: ' + getDaishaLabel(d.daishaId) : '')}</span></td>
-                                <td><span class="status available">${escapeHtml(normalizeDepositStatus(d.status))}</span><br><span style="color:var(--muted);font-size:12px">${escapeHtml(formatPayment(d.payment))}</span></td>
+                                <td>${renderDepositStatusSelect(d.id || '', d.status)}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(formatPayment(d.payment))}</span></td>
                                 <td>
                                     <button type="button" onclick="deliverDeposit('${escapeHtml(d.id || '')}')" style="padding:6px 10px;border-radius:6px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;cursor:pointer;margin-right:6px">納車</button>
                                     <button type="button" onclick="deleteDeposit('${escapeHtml(d.id || '')}')" style="padding:6px 10px;border-radius:6px;border:1px solid #fecaca;background:#fff;color:#b91c1c;cursor:pointer">削除</button>
@@ -2226,6 +2236,28 @@
                     renderDeposits();
                     if(activeDepositDetailId === id) showDepositDetail(id);
                     alert('納車済みとして履歴に保存しました');
+                };
+
+                window.updateDepositStatus = function(id, status){
+                    const nextStatus = normalizeDepositStatus(status);
+                    if(nextStatus === '納車済み'){
+                        deliverDeposit(id);
+                        renderDeposits();
+                        return;
+                    }
+
+                    const deposits = loadDeposits();
+                    const idx = deposits.findIndex(d => d.id === id);
+                    if(idx < 0) return alert('預かり車両が見つかりません');
+
+                    deposits[idx] = {
+                        ...deposits[idx],
+                        status: nextStatus,
+                        deliveredAt: ''
+                    };
+                    saveDeposits(deposits);
+                    renderDeposits();
+                    if(activeDepositDetailId === id) showDepositDetail(id);
                 };
 
                 window.openDepositEdit = function(id){
