@@ -1390,7 +1390,7 @@
 
                     const rows = items.map(d => `
                         <tr>
-                            <td>${escapeHtml(d.customer || '')}</td>
+                            <td>${escapeHtml(formatCustomerName(d.customer))}</td>
                             <td>${escapeHtml([d.car, d.number].filter(Boolean).join(' / '))}</td>
                             <td>${escapeHtml(d.date || '')}</td>
                             <td>${escapeHtml(d.status || '作業中')}</td>
@@ -1941,6 +1941,15 @@
                     return payment || '';
                 }
 
+                function normalizeCustomerName(name){
+                    return String(name || '').trim().replace(/\s*様$/, '');
+                }
+
+                function formatCustomerName(name){
+                    const normalized = normalizeCustomerName(name);
+                    return normalized ? `${normalized}様` : '';
+                }
+
                 function syncDepositDaishaLink(deposit, oldDaishaId = ''){
                     const daishas = loadDaishas();
                     const targetIds = Array.from(new Set([oldDaishaId, deposit.daishaId].filter(Boolean)));
@@ -1958,7 +1967,7 @@
                         if(daisha){
                             const categoryText = formatPayment(deposit.category);
                             daisha.status = '\u8cb8\u51fa\u4e2d';
-                            daisha.loanTo = deposit.customer || '';
+                            daisha.loanTo = formatCustomerName(deposit.customer);
                             daisha.loanDate = deposit.date || '';
                             daisha.loanFuel = '';
                             daisha.loanNote = ['預かり車両', categoryText, deposit.car, deposit.number, deposit.work]
@@ -2005,7 +2014,7 @@
 
                     tbody.innerHTML = deposits.map(d=>`
                         <tr>
-                            <td><button type="button" class="clickable-car" onclick="showDepositDetail('${escapeHtml(d.id || '')}')">${escapeHtml(d.customer || '')}</button><br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.tel || '')}</span></td>
+                            <td><button type="button" class="clickable-car" onclick="showDepositDetail('${escapeHtml(d.id || '')}')">${escapeHtml(formatCustomerName(d.customer))}</button><br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.tel || '')}</span></td>
                             <td>${escapeHtml([d.car, d.number].filter(Boolean).join(' / '))}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.mileage ? d.mileage + ' km' : '')}</span></td>
                             <td>${escapeHtml(d.date || '')}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.daishaId ? '代車: ' + getDaishaLabel(d.daishaId) : '')}</span></td>
                             <td><span class="status available">${escapeHtml(d.status || '作業中')}</span><br><span style="color:var(--muted);font-size:12px">${escapeHtml(formatPayment(d.payment))}</span></td>
@@ -2019,8 +2028,8 @@
                     if(!deposit) return alert('預かり車両が見つかりません');
                     activeDepositDetailId = id;
 
-                    document.getElementById('deposit-detail-title').textContent = deposit.customer || '預かり詳細';
-                    document.getElementById('detail-deposit-customer').textContent = deposit.customer || '';
+                    document.getElementById('deposit-detail-title').textContent = formatCustomerName(deposit.customer) || '預かり詳細';
+                    document.getElementById('detail-deposit-customer').textContent = formatCustomerName(deposit.customer) || '';
                     document.getElementById('detail-deposit-tel').textContent = deposit.tel || '-';
                     document.getElementById('detail-deposit-car').textContent = deposit.car || '';
                     document.getElementById('detail-deposit-number').textContent = deposit.number || '-';
@@ -2050,7 +2059,7 @@
                     const deposits = loadDeposits();
                     const deposit = deposits.find(d => d.id === id);
                     if(!deposit) return alert('預かり車両が見つかりません');
-                    const label = [deposit.customer, deposit.car, deposit.number].filter(Boolean).join(' / ') || 'この預かり車両';
+                    const label = [formatCustomerName(deposit.customer), deposit.car, deposit.number].filter(Boolean).join(' / ') || 'この預かり車両';
                     if(!confirm(`${label} を削除しますか？`)) return;
 
                     saveDeposits(deposits.filter(d => d.id !== id));
@@ -2070,7 +2079,7 @@
                     if(!deposit) return alert('預かり車両が見つかりません');
                     editingDepositId = id;
 
-                    document.getElementById('edit-deposit-customer').value = deposit.customer || '';
+                    document.getElementById('edit-deposit-customer').value = normalizeCustomerName(deposit.customer);
                     document.getElementById('edit-deposit-car').value = deposit.car || '';
                     document.getElementById('edit-deposit-number').value = deposit.number || '';
                     document.getElementById('edit-deposit-mileage').value = deposit.mileage || '';
@@ -2091,7 +2100,7 @@
                     const idx = deposits.findIndex(d => d.id === editingDepositId);
                     if(idx < 0) return alert('預かり車両が見つかりません');
 
-                    const customer = document.getElementById('edit-deposit-customer')?.value.trim() || '';
+                    const customer = normalizeCustomerName(document.getElementById('edit-deposit-customer')?.value || '');
                     const car = document.getElementById('edit-deposit-car')?.value.trim() || '';
                     if(!customer || !car){
                         alert('顧客名と車種を入力してください');
@@ -2125,7 +2134,7 @@
                 };
 
                 window.submitDepositReceive = function(){
-                    const customer = document.getElementById('deposit-customer')?.value.trim() || '';
+                    const customer = normalizeCustomerName(document.getElementById('deposit-customer')?.value || '');
                     const car = document.getElementById('deposit-car')?.value.trim() || '';
                     if(!customer || !car){
                         alert('顧客名と車種を入力してください');
