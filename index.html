@@ -686,20 +686,20 @@
                         <input type="text" id="deposit-number" placeholder="例：川崎 500 さ 33-44">
                     </div>
                     <div class="form-group">
-                        <label>入庫日</label>
-                        <input type="date" id="deposit-date">
-                    </div>
-                    <div class="form-group">
-                        <label>作業内容</label>
-                        <textarea id="deposit-work" placeholder="例：エンジンオイル交換、修理内容など"></textarea>
-                    </div>
-                    <div class="form-group">
                         <label>走行距離</label>
                         <input type="number" id="deposit-mileage" placeholder="例：50000">
                     </div>
                     <div class="form-group">
+                        <label>入庫日</label>
+                        <input type="date" id="deposit-date">
+                    </div>
+                    <div class="form-group">
                         <label>TEL</label>
                         <input type="tel" id="deposit-tel" placeholder="例：090-1234-5678">
+                    </div>
+                    <div class="form-group">
+                        <label>作業内容</label>
+                        <textarea id="deposit-work" placeholder="例：エンジンオイル交換、修理内容など"></textarea>
                     </div>
                     <div class="form-group">
                         <label>代車</label>
@@ -715,6 +715,10 @@
                             <option>請求書</option>
                             <option>その他</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>備考</label>
+                        <textarea id="deposit-note" placeholder="備考があれば入力"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1267,6 +1271,7 @@
                         d.mileage,
                         getDaishaLabel(d.daishaId),
                         d.payment,
+                        d.note,
                         d.status
                     ].join(' ').toLowerCase().includes(keyword));
                 }
@@ -1701,13 +1706,14 @@
                     if(!select) return;
 
                     const currentValue = select.value;
-                    const options = daishas.map(d=>{
+                    const selectableDaishas = daishas.filter(d => isAvailableDaisha(d) || d.id === currentValue);
+                    const options = selectableDaishas.map(d=>{
                         const label = [d.make, d.number].filter(Boolean).join(' / ') || d.id;
                         return `<option value="${escapeHtml(d.id)}">${escapeHtml(label)}</option>`;
                     }).join('');
 
                     select.innerHTML = `<option value="">なし</option>${options}`;
-                    if(currentValue && daishas.some(d => d.id === currentValue)){
+                    if(currentValue && selectableDaishas.some(d => d.id === currentValue)){
                         select.value = currentValue;
                     }
                 }
@@ -1762,6 +1768,7 @@
                         tel: document.getElementById('deposit-tel')?.value.trim() || '',
                         daishaId: document.getElementById('deposit-daisha')?.value || '',
                         payment: document.getElementById('deposit-payment')?.value || '',
+                        note: document.getElementById('deposit-note')?.value.trim() || '',
                         status: '作業中'
                     });
 
@@ -1769,7 +1776,7 @@
                     renderDeposits();
                     document.getElementById('modal-deposit-receive')?.classList.remove('active');
 
-                    ['deposit-customer','deposit-car','deposit-number','deposit-date','deposit-work','deposit-mileage','deposit-tel','deposit-daisha','deposit-payment'].forEach(id=>{
+                    ['deposit-customer','deposit-car','deposit-number','deposit-date','deposit-work','deposit-mileage','deposit-tel','deposit-daisha','deposit-payment','deposit-note'].forEach(id=>{
                         const el = document.getElementById(id);
                         if(el) el.value = '';
                     });
