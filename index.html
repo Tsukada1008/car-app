@@ -768,6 +768,14 @@
                         <textarea id="deposit-work" placeholder="例：エンジンオイル交換、修理内容など"></textarea>
                     </div>
                     <div class="form-group">
+                        <label>ステータス</label>
+                        <select id="deposit-status">
+                            <option>見積待ち</option>
+                            <option>部品待ち</option>
+                            <option selected>作業</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label>備考</label>
                         <textarea id="deposit-note" placeholder="備考があれば入力"></textarea>
                     </div>
@@ -849,7 +857,11 @@
                     </div>
                     <div class="form-group">
                         <label>ステータス</label>
-                        <input type="text" id="edit-deposit-status">
+                        <select id="edit-deposit-status">
+                            <option>見積待ち</option>
+                            <option>部品待ち</option>
+                            <option>作業</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>備考</label>
@@ -1421,7 +1433,7 @@
                             <td>${escapeHtml(formatCustomerName(d.customer))}</td>
                             <td>${escapeHtml([d.car, d.number].filter(Boolean).join(' / '))}</td>
                             <td>${escapeHtml(d.date || '')}</td>
-                            <td>${escapeHtml(d.status || '作業中')}</td>
+                            <td>${escapeHtml(normalizeDepositStatus(d.status))}</td>
                         </tr>
                     `).join('');
 
@@ -1978,6 +1990,12 @@
                     return normalized ? `${normalized}様` : '';
                 }
 
+                function normalizeDepositStatus(status){
+                    const value = String(status || '').trim();
+                    if(!value || value === '作業中') return '作業';
+                    return value;
+                }
+
                 function syncDepositDaishaLink(deposit, oldDaishaId = ''){
                     const daishas = loadDaishas();
                     const targetIds = Array.from(new Set([oldDaishaId, deposit.daishaId].filter(Boolean)));
@@ -2045,7 +2063,7 @@
                             <td><button type="button" class="clickable-car" onclick="showDepositDetail('${escapeHtml(d.id || '')}')">${escapeHtml(formatCustomerName(d.customer))}</button><br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.tel || '')}</span></td>
                             <td>${escapeHtml([d.car, d.number].filter(Boolean).join(' / '))}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.mileage ? d.mileage + ' km' : '')}</span></td>
                             <td>${escapeHtml(d.date || '')}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.daishaId ? '代車: ' + getDaishaLabel(d.daishaId) : '')}</span></td>
-                            <td><span class="status available">${escapeHtml(d.status || '作業中')}</span><br><span style="color:var(--muted);font-size:12px">${escapeHtml(formatPayment(d.payment))}</span></td>
+                            <td><span class="status available">${escapeHtml(normalizeDepositStatus(d.status))}</span><br><span style="color:var(--muted);font-size:12px">${escapeHtml(formatPayment(d.payment))}</span></td>
                             <td><button type="button" onclick="deleteDeposit('${escapeHtml(d.id || '')}')" style="padding:6px 10px;border-radius:6px;border:1px solid #fecaca;background:#fff;color:#b91c1c;cursor:pointer">削除</button></td>
                         </tr>
                     `).join('');
@@ -2069,7 +2087,7 @@
                     document.getElementById('detail-deposit-category').textContent = formatPayment(deposit.category) || '-';
                     document.getElementById('detail-deposit-work').textContent = deposit.work || '-';
                     document.getElementById('detail-deposit-note').textContent = deposit.note || '-';
-                    document.getElementById('detail-deposit-status').innerHTML = `<span class="status available">${escapeHtml(deposit.status || '作業中')}</span>`;
+                    document.getElementById('detail-deposit-status').innerHTML = `<span class="status available">${escapeHtml(normalizeDepositStatus(deposit.status))}</span>`;
                     const editButton = document.getElementById('deposit-detail-edit-btn');
                     if(editButton) editButton.onclick = () => openDepositEdit(id);
 
@@ -2115,7 +2133,7 @@
                     document.getElementById('edit-deposit-date').value = deposit.date || '';
                     document.getElementById('edit-deposit-tel').value = deposit.tel || '';
                     document.getElementById('edit-deposit-work').value = deposit.work || '';
-                    document.getElementById('edit-deposit-status').value = deposit.status || '作業中';
+                    document.getElementById('edit-deposit-status').value = normalizeDepositStatus(deposit.status);
                     document.getElementById('edit-deposit-note').value = deposit.note || '';
                     renderDepositDaishaOptions(loadDaishas(), 'edit-deposit-daisha', deposit.daishaId || '');
                     document.getElementById('edit-deposit-fuel').value = deposit.fuel || '';
@@ -2151,7 +2169,7 @@
                         daishaId: document.getElementById('edit-deposit-daisha')?.value || '',
                         fuel: document.getElementById('edit-deposit-fuel')?.value || '',
                         payment: getSelectedValues('edit-deposit-payment'),
-                        status: document.getElementById('edit-deposit-status')?.value.trim() || '作業中',
+                        status: normalizeDepositStatus(document.getElementById('edit-deposit-status')?.value || ''),
                         note: document.getElementById('edit-deposit-note')?.value.trim() || ''
                     };
 
@@ -2187,7 +2205,7 @@
                         fuel: document.getElementById('deposit-fuel')?.value || '',
                         payment: getSelectedValues('deposit-payment'),
                         note: document.getElementById('deposit-note')?.value.trim() || '',
-                        status: '作業中'
+                        status: normalizeDepositStatus(document.getElementById('deposit-status')?.value || '')
                     };
                     deposits.unshift(deposit);
 
@@ -2196,13 +2214,15 @@
                     renderDeposits();
                     document.getElementById('modal-deposit-receive')?.classList.remove('active');
 
-                    ['deposit-customer','deposit-car','deposit-number','deposit-date','deposit-work','deposit-category','deposit-mileage','deposit-tel','deposit-daisha','deposit-fuel','deposit-payment','deposit-note'].forEach(id=>{
+                    ['deposit-customer','deposit-car','deposit-number','deposit-date','deposit-work','deposit-category','deposit-mileage','deposit-tel','deposit-daisha','deposit-fuel','deposit-payment','deposit-status','deposit-note'].forEach(id=>{
                         const el = document.getElementById(id);
                         if(!el) return;
                         if(el.multiple){
                             Array.from(el.options).forEach(option => option.selected = false);
                         }else if(el.classList.contains('checkbox-group')){
                             Array.from(el.querySelectorAll('input[type="checkbox"]')).forEach(input => input.checked = false);
+                        }else if(id === 'deposit-status'){
+                            el.value = '作業';
                         }else{
                             el.value = '';
                         }
