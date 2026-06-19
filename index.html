@@ -862,7 +862,7 @@
                     if(!isCloudSyncEnabled()) return Promise.resolve(null);
 
                     return new Promise(resolve => {
-                        const callbackName = `cloudSync_${key}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+                        const callbackName = `cloudSync_${key.replace(/[^a-z0-9_]/gi, '_')}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
                         const script = document.createElement('script');
                         const cleanup = () => {
                             delete window[callbackName];
