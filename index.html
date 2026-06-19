@@ -386,6 +386,7 @@
                                     <th>車両</th>
                                     <th>入庫日</th>
                                     <th>ステータス</th>
+                                    <th>操作</th>
                                 </tr>
                             </thead>
                             <tbody id="deposit-tbody">
@@ -1998,7 +1999,7 @@
 
                     const deposits = loadDeposits();
                     if(deposits.length === 0){
-                        tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">データがありません</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">データがありません</td></tr>';
                         return;
                     }
 
@@ -2008,6 +2009,7 @@
                             <td>${escapeHtml([d.car, d.number].filter(Boolean).join(' / '))}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.mileage ? d.mileage + ' km' : '')}</span></td>
                             <td>${escapeHtml(d.date || '')}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.daishaId ? '代車: ' + getDaishaLabel(d.daishaId) : '')}</span></td>
                             <td><span class="status available">${escapeHtml(d.status || '作業中')}</span><br><span style="color:var(--muted);font-size:12px">${escapeHtml(formatPayment(d.payment))}</span></td>
+                            <td><button type="button" onclick="deleteDeposit('${escapeHtml(d.id || '')}')" style="padding:6px 10px;border-radius:6px;border:1px solid #fecaca;background:#fff;color:#b91c1c;cursor:pointer">削除</button></td>
                         </tr>
                     `).join('');
                 }
@@ -2042,6 +2044,25 @@
                     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
                     document.getElementById('deposit').classList.add('active');
                     document.querySelectorAll('.nav li').forEach(li=>li.classList.toggle('active', li.dataset.view==='deposit'));
+                };
+
+                window.deleteDeposit = function(id){
+                    const deposits = loadDeposits();
+                    const deposit = deposits.find(d => d.id === id);
+                    if(!deposit) return alert('預かり車両が見つかりません');
+                    const label = [deposit.customer, deposit.car, deposit.number].filter(Boolean).join(' / ') || 'この預かり車両';
+                    if(!confirm(`${label} を削除しますか？`)) return;
+
+                    saveDeposits(deposits.filter(d => d.id !== id));
+                    if(deposit.daishaId){
+                        syncDepositDaishaLink({...deposit, daishaId: ''}, deposit.daishaId);
+                    }
+                    renderDeposits();
+                    if(activeDepositDetailId === id){
+                        activeDepositDetailId = '';
+                        showDepositList();
+                    }
+                    alert('削除しました');
                 };
 
                 window.openDepositEdit = function(id){
