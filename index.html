@@ -892,6 +892,7 @@
                         refreshAllDataLists();
                         renderAllLists();
                     }
+                    syncAllOptionsToCloud();
                 }
 
                 window.setGoogleSheetsWebAppUrl = function(url){
@@ -1103,7 +1104,10 @@
                     const value = input?.value?.trim();
                     if(!value) return alert('入力してください');
                     const opts = getOptions(key);
-                    if(opts.includes(value)) return alert('すでに登録済みです');
+                    if(opts.includes(value)){
+                        saveOptions(key, opts);
+                        return alert('すでに登録済みです。クラウド同期を再実行しました。');
+                    }
                     addOptionValue(key, value);
                     input.value = '';
                 };
