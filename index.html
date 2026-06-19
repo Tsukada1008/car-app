@@ -409,6 +409,9 @@
                             <div class="detail-item"><label>備考</label><div id="detail-deposit-note"></div></div>
                             <div class="detail-item"><label>ステータス</label><div id="detail-deposit-status"></div></div>
                         </div>
+                        <div class="detail-actions" style="margin-top:16px">
+                            <button class="primary" id="deposit-detail-edit-btn" type="button">編集</button>
+                        </div>
                     </div>
                 </section>
 
@@ -742,6 +745,71 @@
                 <div class="modal-footer">
                     <button data-modal-close>キャンセル</button>
                     <button class="primary" onclick="submitDepositReceive()">登録</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- モーダル: 預かり編集 -->
+        <div id="modal-deposit-edit" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>預かり車両編集</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>顧客名</label>
+                        <input type="text" id="edit-deposit-customer">
+                    </div>
+                    <div class="form-group">
+                        <label>車種</label>
+                        <input type="text" id="edit-deposit-car">
+                    </div>
+                    <div class="form-group">
+                        <label>ナンバー</label>
+                        <input type="text" id="edit-deposit-number">
+                    </div>
+                    <div class="form-group">
+                        <label>走行距離</label>
+                        <input type="number" id="edit-deposit-mileage">
+                    </div>
+                    <div class="form-group">
+                        <label>入庫日</label>
+                        <input type="date" id="edit-deposit-date">
+                    </div>
+                    <div class="form-group">
+                        <label>TEL</label>
+                        <input type="tel" id="edit-deposit-tel">
+                    </div>
+                    <div class="form-group">
+                        <label>作業内容</label>
+                        <textarea id="edit-deposit-work"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>代車</label>
+                        <select id="edit-deposit-daisha"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>支払方法</label>
+                        <select id="edit-deposit-payment" multiple size="5">
+                            <option>現金</option>
+                            <option>振込</option>
+                            <option>クレジットカード</option>
+                            <option>電子マネー</option>
+                            <option>その他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>ステータス</label>
+                        <input type="text" id="edit-deposit-status">
+                    </div>
+                    <div class="form-group">
+                        <label>備考</label>
+                        <textarea id="edit-deposit-note"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button data-modal-close>キャンセル</button>
+                    <button class="primary" onclick="saveDepositEdit()">保存</button>
                 </div>
             </div>
         </div>
@@ -1785,6 +1853,9 @@
 
                 normalizeDaishaDetailLabels();
 
+                let activeDepositDetailId = '';
+                let editingDepositId = '';
+
                 function loadDeposits(){
                     try{ return JSON.parse(localStorage.getItem('deposits')||'[]'); }catch(e){return[]}
                 }
@@ -1794,11 +1865,11 @@
                     syncStoreToCloud('deposits', arr);
                 }
 
-                function renderDepositDaishaOptions(daishas = loadDaishas()){
-                    const select = document.getElementById('deposit-daisha');
+                function renderDepositDaishaOptions(daishas = loadDaishas(), selectId = 'deposit-daisha', selectedValue = ''){
+                    const select = document.getElementById(selectId);
                     if(!select) return;
 
-                    const currentValue = select.value;
+                    const currentValue = selectedValue || select.value;
                     const selectableDaishas = daishas.filter(d => isAvailableDaisha(d) || d.id === currentValue);
                     const options = selectableDaishas.map(d=>{
                         const label = [d.make, d.number].filter(Boolean).join(' / ') || d.id;
@@ -1824,45 +1895,67 @@
                     return Array.from(select.selectedOptions).map(option => option.value).filter(Boolean);
                 }
 
+                function setSelectedValues(selectId, values){
+                    const select = document.getElementById(selectId);
+                    if(!select) return;
+                    const selectedValues = Array.isArray(values) ? values : [values].filter(Boolean);
+                    Array.from(select.options).forEach(option => {
+                        option.selected = selectedValues.includes(option.value);
+                    });
+                }
+
                 function formatPayment(payment){
                     if(Array.isArray(payment)) return payment.join(' / ');
                     return payment || '';
                 }
 
-                function linkDepositToDaisha(deposit){
-                    if(!deposit.daishaId) return;
-
+                function syncDepositDaishaLink(deposit, oldDaishaId = ''){
                     const daishas = loadDaishas();
-                    const idx = daishas.findIndex(d => d.id === deposit.daishaId);
-                    if(idx < 0) return;
+                    const targetIds = Array.from(new Set([oldDaishaId, deposit.daishaId].filter(Boolean)));
 
-                    const daisha = daishas[idx];
-                    daisha.status = '\u8cb8\u51fa\u4e2d';
-                    daisha.loanTo = deposit.customer || '';
-                    daisha.loanDate = deposit.date || '';
-                    daisha.loanFuel = '';
-                    daisha.loanNote = ['預かり車両', deposit.car, deposit.number, deposit.work]
-                        .filter(Boolean)
-                        .join(' / ');
-                    daisha.returnDate = '';
-                    daisha.returnFuel = '';
-                    daisha.returnNote = '';
-
-                    if(!daisha.history) daisha.history = [];
-                    daisha.history.push({
-                        loanTo: daisha.loanTo,
-                        loanDate: daisha.loanDate,
-                        returnDate: '',
-                        loanFuel: '',
-                        returnFuel: '',
-                        loanNote: daisha.loanNote,
-                        returnNote: '',
-                        source: 'deposit',
-                        depositId: deposit.id
+                    targetIds.forEach(id => {
+                        const daisha = daishas.find(d => d.id === id);
+                        if(!daisha) return;
+                        if(!daisha.history) daisha.history = [];
+                        daisha.history = daisha.history.filter(h => !(h.source === 'deposit' && h.depositId === deposit.id));
+                        refreshDaishaCurrentLoanFromHistory(daisha);
                     });
+
+                    if(deposit.daishaId){
+                        const daisha = daishas.find(d => d.id === deposit.daishaId);
+                        if(daisha){
+                            daisha.status = '\u8cb8\u51fa\u4e2d';
+                            daisha.loanTo = deposit.customer || '';
+                            daisha.loanDate = deposit.date || '';
+                            daisha.loanFuel = '';
+                            daisha.loanNote = ['預かり車両', deposit.car, deposit.number, deposit.work]
+                                .filter(Boolean)
+                                .join(' / ');
+                            daisha.returnDate = '';
+                            daisha.returnFuel = '';
+                            daisha.returnNote = '';
+                            if(!daisha.history) daisha.history = [];
+                            daisha.history.push({
+                                loanTo: daisha.loanTo,
+                                loanDate: daisha.loanDate,
+                                returnDate: '',
+                                loanFuel: '',
+                                returnFuel: '',
+                                loanNote: daisha.loanNote,
+                                returnNote: '',
+                                source: 'deposit',
+                                depositId: deposit.id
+                            });
+                        }
+                    }
 
                     saveDaishas(daishas);
                     renderDaishas();
+                    renderDepositDaishaOptions(daishas);
+                }
+
+                function linkDepositToDaisha(deposit){
+                    syncDepositDaishaLink(deposit);
                 }
 
                 function renderDeposits(){
@@ -1890,6 +1983,7 @@
                 window.showDepositDetail = function(id){
                     const deposit = loadDeposits().find(d => d.id === id);
                     if(!deposit) return alert('預かり車両が見つかりません');
+                    activeDepositDetailId = id;
 
                     document.getElementById('deposit-detail-title').textContent = deposit.customer || '預かり詳細';
                     document.getElementById('detail-deposit-customer').textContent = deposit.customer || '';
@@ -1903,6 +1997,8 @@
                     document.getElementById('detail-deposit-work').textContent = deposit.work || '-';
                     document.getElementById('detail-deposit-note').textContent = deposit.note || '-';
                     document.getElementById('detail-deposit-status').innerHTML = `<span class="status available">${escapeHtml(deposit.status || '作業中')}</span>`;
+                    const editButton = document.getElementById('deposit-detail-edit-btn');
+                    if(editButton) editButton.onclick = () => openDepositEdit(id);
 
                     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
                     document.getElementById('deposit-detail').classList.add('active');
@@ -1913,6 +2009,63 @@
                     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
                     document.getElementById('deposit').classList.add('active');
                     document.querySelectorAll('.nav li').forEach(li=>li.classList.toggle('active', li.dataset.view==='deposit'));
+                };
+
+                window.openDepositEdit = function(id){
+                    const deposit = loadDeposits().find(d => d.id === id);
+                    if(!deposit) return alert('預かり車両が見つかりません');
+                    editingDepositId = id;
+
+                    document.getElementById('edit-deposit-customer').value = deposit.customer || '';
+                    document.getElementById('edit-deposit-car').value = deposit.car || '';
+                    document.getElementById('edit-deposit-number').value = deposit.number || '';
+                    document.getElementById('edit-deposit-mileage').value = deposit.mileage || '';
+                    document.getElementById('edit-deposit-date').value = deposit.date || '';
+                    document.getElementById('edit-deposit-tel').value = deposit.tel || '';
+                    document.getElementById('edit-deposit-work').value = deposit.work || '';
+                    document.getElementById('edit-deposit-status').value = deposit.status || '作業中';
+                    document.getElementById('edit-deposit-note').value = deposit.note || '';
+                    renderDepositDaishaOptions(loadDaishas(), 'edit-deposit-daisha', deposit.daishaId || '');
+                    setSelectedValues('edit-deposit-payment', deposit.payment || []);
+                    document.getElementById('modal-deposit-edit')?.classList.add('active');
+                };
+
+                window.saveDepositEdit = function(){
+                    if(!editingDepositId) return;
+                    const deposits = loadDeposits();
+                    const idx = deposits.findIndex(d => d.id === editingDepositId);
+                    if(idx < 0) return alert('預かり車両が見つかりません');
+
+                    const customer = document.getElementById('edit-deposit-customer')?.value.trim() || '';
+                    const car = document.getElementById('edit-deposit-car')?.value.trim() || '';
+                    if(!customer || !car){
+                        alert('顧客名と車種を入力してください');
+                        return;
+                    }
+
+                    const oldDaishaId = deposits[idx].daishaId || '';
+                    deposits[idx] = {
+                        ...deposits[idx],
+                        customer,
+                        car,
+                        number: document.getElementById('edit-deposit-number')?.value.trim() || '',
+                        mileage: document.getElementById('edit-deposit-mileage')?.value || '',
+                        date: document.getElementById('edit-deposit-date')?.value || '',
+                        tel: document.getElementById('edit-deposit-tel')?.value.trim() || '',
+                        work: document.getElementById('edit-deposit-work')?.value.trim() || '',
+                        daishaId: document.getElementById('edit-deposit-daisha')?.value || '',
+                        payment: getSelectedValues('edit-deposit-payment'),
+                        status: document.getElementById('edit-deposit-status')?.value.trim() || '作業中',
+                        note: document.getElementById('edit-deposit-note')?.value.trim() || ''
+                    };
+
+                    saveDeposits(deposits);
+                    syncDepositDaishaLink(deposits[idx], oldDaishaId);
+                    renderDeposits();
+                    if(activeDepositDetailId === editingDepositId) showDepositDetail(editingDepositId);
+                    document.getElementById('modal-deposit-edit')?.classList.remove('active');
+                    editingDepositId = '';
+                    alert('編集内容を保存しました');
                 };
 
                 window.submitDepositReceive = function(){
