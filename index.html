@@ -635,16 +635,17 @@
                     </div>
                     <div class="form-group">
                         <label>発地</label>
-                        <select id="loan-from" required></select>
+                        <select id="loan-from-select"></select>
+                        <input type="text" id="loan-from" placeholder="発地を入力" required style="margin-top:6px">
                     </div>
                     <div class="form-group">
                         <label>着地</label>
-                        <select id="loan-to" required></select>
+                        <select id="loan-to-select"></select>
+                        <input type="text" id="loan-to" placeholder="着地を入力" required style="margin-top:6px">
                     </div>
                     <div class="form-group">
                         <label>使用者</label>
-                        <select id="loan-user-select"></select>
-                        <input type="text" id="loan-user" placeholder="使用者を入力" required style="margin-top:6px">
+                        <select id="loan-user" required></select>
                     </div>
                     <div class="form-group">
                         <label>貸渡時間</label>
@@ -745,16 +746,17 @@
                     </div>
                     <div class="form-group">
                         <label>発地</label>
-                        <select id="edit-loan-from" required></select>
+                        <select id="edit-loan-from-select"></select>
+                        <input type="text" id="edit-loan-from" required style="margin-top:6px">
                     </div>
                     <div class="form-group">
                         <label>着地</label>
-                        <select id="edit-loan-to" required></select>
+                        <select id="edit-loan-to-select"></select>
+                        <input type="text" id="edit-loan-to" required style="margin-top:6px">
                     </div>
                     <div class="form-group">
                         <label>使用者</label>
-                        <select id="edit-loan-user-select"></select>
-                        <input type="text" id="edit-loan-user" required style="margin-top:6px">
+                        <select id="edit-loan-user" required></select>
                     </div>
                     <div class="form-group">
                         <label>貸渡時間</label>
@@ -935,13 +937,15 @@
                 const DATALIST_IDS = {purpose: 'dl-purpose', from: 'dl-from', to: 'dl-to', user: 'dl-user'};
                 const SELECT_IDS = {
                     purpose: ['loan-purpose', 'edit-loan-purpose'],
-                    from: ['loan-from', 'edit-loan-from'],
-                    to: ['loan-to', 'edit-loan-to'],
-                    user: ['loan-user-select', 'edit-loan-user-select']
+                    from: ['loan-from-select', 'edit-loan-from-select'],
+                    to: ['loan-to-select', 'edit-loan-to-select'],
+                    user: ['loan-user', 'edit-loan-user']
                 };
-                const USER_SELECT_TO_INPUT = {
-                    'loan-user-select': 'loan-user',
-                    'edit-loan-user-select': 'edit-loan-user'
+                const SELECT_TO_INPUT = {
+                    'loan-from-select': 'loan-from',
+                    'edit-loan-from-select': 'edit-loan-from',
+                    'loan-to-select': 'loan-to',
+                    'edit-loan-to-select': 'edit-loan-to'
                 };
                 const LOCATION_OPTION_FIXES = {
                     'Museum': 'MuseuM',
@@ -999,7 +1003,7 @@
                                 ...opts.map(opt=>`<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`)
                             ].join('');
                             if(currentValue) setSelectValue(select, currentValue);
-                            const targetInputId = USER_SELECT_TO_INPUT[id];
+                            const targetInputId = SELECT_TO_INPUT[id];
                             if(targetInputId){
                                 select.onchange = () => {
                                     const targetInput = document.getElementById(targetInputId);
@@ -1673,10 +1677,11 @@
                     setSelectValue('edit-loan-purpose', loan.purpose||'');
                     document.getElementById('edit-loan-car').value = loan.car||'';
                     document.getElementById('edit-loan-vin').value = loan.vin||'';
-                    setSelectValue('edit-loan-from', loan.from||'');
-                    setSelectValue('edit-loan-to', loan.to||'');
-                    document.getElementById('edit-loan-user').value = loan.user||'';
-                    setSelectValue('edit-loan-user-select', loan.user||'');
+                    document.getElementById('edit-loan-from').value = loan.from||'';
+                    setSelectValue('edit-loan-from-select', loan.from||'');
+                    document.getElementById('edit-loan-to').value = loan.to||'';
+                    setSelectValue('edit-loan-to-select', loan.to||'');
+                    setSelectValue('edit-loan-user', loan.user||'');
                     document.getElementById('edit-loan-start').value = loan.start||'';
                     document.getElementById('edit-loan-end').value = loan.returnedAt||'';
                     document.getElementById('modal-loan-edit').classList.add('active');
