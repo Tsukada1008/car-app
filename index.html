@@ -1586,6 +1586,78 @@
                     document.querySelectorAll('.nav li').forEach(li=>li.classList.toggle('active', li.dataset.view==='daisha'));
                 };
 
+                function refreshDaishaCurrentLoanFromHistory(daisha){
+                    const activeHistory = (daisha.history || []).slice().reverse().find(h => !h.returnDate);
+                    if(activeHistory){
+                        daisha.status = '\u8cb8\u51fa\u4e2d';
+                        daisha.loanTo = activeHistory.loanTo || '';
+                        daisha.loanDate = activeHistory.loanDate || '';
+                        daisha.loanFuel = activeHistory.loanFuel || '';
+                        daisha.loanNote = activeHistory.loanNote || '';
+                        daisha.returnDate = '';
+                        daisha.returnFuel = '';
+                        daisha.returnNote = '';
+                    }else if(daisha.status === '\u8cb8\u51fa\u4e2d'){
+                        daisha.status = '\u7a7a\u8eca';
+                        daisha.loanTo = '';
+                        daisha.loanDate = '';
+                        daisha.loanFuel = '';
+                        daisha.loanNote = '';
+                    }
+                }
+
+                window.editDaishaHistory = function(historyIndex){
+                    const id = window._currentDaishaDetailId;
+                    const daishas = loadDaishas();
+                    const daisha = daishas.find(x => x.id === id);
+                    if(!daisha || !daisha.history || !daisha.history[historyIndex]) return alert('履歴が見つかりません');
+
+                    const h = daisha.history[historyIndex];
+                    const loanTo = prompt('貸出先', h.loanTo || '');
+                    if(loanTo === null) return;
+                    const loanDate = prompt('貸出日', h.loanDate || '');
+                    if(loanDate === null) return;
+                    const returnDate = prompt('返却日（未返却なら空欄）', h.returnDate || '');
+                    if(returnDate === null) return;
+                    const loanFuel = prompt('貸出時燃料', h.loanFuel || '');
+                    if(loanFuel === null) return;
+                    const returnFuel = prompt('返却時燃料', h.returnFuel || '');
+                    if(returnFuel === null) return;
+                    const loanNote = prompt('貸出備考', h.loanNote || '');
+                    if(loanNote === null) return;
+                    const returnNote = prompt('返却備考', h.returnNote || '');
+                    if(returnNote === null) return;
+
+                    daisha.history[historyIndex] = {
+                        ...h,
+                        loanTo: loanTo.trim(),
+                        loanDate: loanDate.trim(),
+                        returnDate: returnDate.trim(),
+                        loanFuel: loanFuel.trim(),
+                        returnFuel: returnFuel.trim(),
+                        loanNote: loanNote.trim(),
+                        returnNote: returnNote.trim()
+                    };
+                    refreshDaishaCurrentLoanFromHistory(daisha);
+                    saveDaishas(daishas);
+                    renderDaishas();
+                    showDaishaDetail(id);
+                };
+
+                window.deleteDaishaHistory = function(historyIndex){
+                    const id = window._currentDaishaDetailId;
+                    const daishas = loadDaishas();
+                    const daisha = daishas.find(x => x.id === id);
+                    if(!daisha || !daisha.history || !daisha.history[historyIndex]) return alert('履歴が見つかりません');
+                    if(!confirm('この貸出履歴を削除しますか？')) return;
+
+                    daisha.history.splice(historyIndex, 1);
+                    refreshDaishaCurrentLoanFromHistory(daisha);
+                    saveDaishas(daishas);
+                    renderDaishas();
+                    showDaishaDetail(id);
+                };
+
                 function renderDaishaHistory(daisha){
                     const historyBox = document.getElementById('detail-daisha-history');
                     const histories = daisha.history || [];
@@ -1658,9 +1730,9 @@
                     }
 
                     const rows = histories
-                        .slice()
+                        .map((h, historyIndex) => ({h, historyIndex}))
                         .reverse()
-                        .map(h => `
+                        .map(({h, historyIndex}) => `
                             <tr>
                                 <td data-label="貸出先">${escapeHtml(h.loanTo || '-')}</td>
                                 <td data-label="貸出日">${escapeHtml(h.loanDate || '-')}</td>
@@ -1668,6 +1740,10 @@
                                 <td data-label="貸出時燃料">${escapeHtml(h.loanFuel || '-')}</td>
                                 <td data-label="返却時燃料">${escapeHtml(h.returnFuel || '-')}</td>
                                 <td data-label="備考">${escapeHtml([h.loanNote, h.returnNote].filter(Boolean).join(' / ') || '-')}</td>
+                                <td data-label="操作">
+                                    <button onclick="editDaishaHistory(${historyIndex})" style="padding:4px 8px;border-radius:6px;border:0;background:#f3f4f6;color:#111;cursor:pointer;font-size:12px;margin-right:6px">編集</button>
+                                    <button onclick="deleteDaishaHistory(${historyIndex})" style="padding:4px 8px;border-radius:6px;border:0;background:#fee2e2;color:#991b1b;cursor:pointer;font-size:12px">削除</button>
+                                </td>
                             </tr>
                         `)
                         .join('');
@@ -1682,6 +1758,7 @@
                                     <th>貸出時燃料</th>
                                     <th>返却時燃料</th>
                                     <th>備考</th>
+                                    <th>操作</th>
                                 </tr>
                             </thead>
                             <tbody>${rows}</tbody>
@@ -1735,6 +1812,42 @@
                     return payment || '';
                 }
 
+                function linkDepositToDaisha(deposit){
+                    if(!deposit.daishaId) return;
+
+                    const daishas = loadDaishas();
+                    const idx = daishas.findIndex(d => d.id === deposit.daishaId);
+                    if(idx < 0) return;
+
+                    const daisha = daishas[idx];
+                    daisha.status = '\u8cb8\u51fa\u4e2d';
+                    daisha.loanTo = deposit.customer || '';
+                    daisha.loanDate = deposit.date || '';
+                    daisha.loanFuel = '';
+                    daisha.loanNote = ['預かり車両', deposit.car, deposit.number, deposit.work]
+                        .filter(Boolean)
+                        .join(' / ');
+                    daisha.returnDate = '';
+                    daisha.returnFuel = '';
+                    daisha.returnNote = '';
+
+                    if(!daisha.history) daisha.history = [];
+                    daisha.history.push({
+                        loanTo: daisha.loanTo,
+                        loanDate: daisha.loanDate,
+                        returnDate: '',
+                        loanFuel: '',
+                        returnFuel: '',
+                        loanNote: daisha.loanNote,
+                        returnNote: '',
+                        source: 'deposit',
+                        depositId: deposit.id
+                    });
+
+                    saveDaishas(daishas);
+                    renderDaishas();
+                }
+
                 function renderDeposits(){
                     const tbody = document.getElementById('deposit-tbody');
                     const dashboardDepositCount = document.getElementById('dashboard-deposit-count');
@@ -1767,7 +1880,7 @@
                     }
 
                     const deposits = loadDeposits();
-                    deposits.unshift({
+                    const deposit = {
                         id: 'DP-' + Date.now(),
                         customer,
                         car,
@@ -1780,9 +1893,11 @@
                         payment: getSelectedValues('deposit-payment'),
                         note: document.getElementById('deposit-note')?.value.trim() || '',
                         status: '作業中'
-                    });
+                    };
+                    deposits.unshift(deposit);
 
                     saveDeposits(deposits);
+                    linkDepositToDaisha(deposit);
                     renderDeposits();
                     document.getElementById('modal-deposit-receive')?.classList.remove('active');
 
