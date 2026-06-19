@@ -379,7 +379,6 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>預かりID</th>
                                     <th>顧客名</th>
                                     <th>車両</th>
                                     <th>入庫日</th>
@@ -393,6 +392,26 @@
                 </section>
 
                 <!-- 設定ビュー -->
+                <section id="deposit-detail" class="view">
+                    <button class="back-btn" onclick="showDepositList()">預かり一覧に戻る</button>
+                    <div class="panel">
+                        <h2 id="deposit-detail-title" style="margin:0 0 12px">預かり詳細</h2>
+                        <div class="vehicle-detail-grid">
+                            <div class="detail-item"><label>顧客名</label><div id="detail-deposit-customer"></div></div>
+                            <div class="detail-item"><label>TEL</label><div id="detail-deposit-tel"></div></div>
+                            <div class="detail-item"><label>車種</label><div id="detail-deposit-car"></div></div>
+                            <div class="detail-item"><label>ナンバー</label><div id="detail-deposit-number"></div></div>
+                            <div class="detail-item"><label>走行距離</label><div id="detail-deposit-mileage"></div></div>
+                            <div class="detail-item"><label>入庫日</label><div id="detail-deposit-date"></div></div>
+                            <div class="detail-item"><label>代車</label><div id="detail-deposit-daisha"></div></div>
+                            <div class="detail-item"><label>支払方法</label><div id="detail-deposit-payment"></div></div>
+                            <div class="detail-item"><label>作業内容</label><div id="detail-deposit-work"></div></div>
+                            <div class="detail-item"><label>備考</label><div id="detail-deposit-note"></div></div>
+                            <div class="detail-item"><label>ステータス</label><div id="detail-deposit-status"></div></div>
+                        </div>
+                    </div>
+                </section>
+
                 <section id="settings" class="view">
                     <div class="header">
                         <div>
@@ -1282,7 +1301,6 @@
 
                     const rows = items.map(d => `
                         <tr>
-                            <td>${escapeHtml(d.id || '')}</td>
                             <td>${escapeHtml(d.customer || '')}</td>
                             <td>${escapeHtml([d.car, d.number].filter(Boolean).join(' / '))}</td>
                             <td>${escapeHtml(d.date || '')}</td>
@@ -1294,7 +1312,6 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>預かりID</th>
                                     <th>顧客名</th>
                                     <th>車両</th>
                                     <th>入庫日</th>
@@ -1856,20 +1873,47 @@
 
                     const deposits = loadDeposits();
                     if(deposits.length === 0){
-                        tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">データがありません</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">データがありません</td></tr>';
                         return;
                     }
 
                     tbody.innerHTML = deposits.map(d=>`
                         <tr>
-                            <td>${escapeHtml(d.id || '')}</td>
-                            <td>${escapeHtml(d.customer || '')}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.tel || '')}</span></td>
+                            <td><button type="button" class="clickable-car" onclick="showDepositDetail('${escapeHtml(d.id || '')}')">${escapeHtml(d.customer || '')}</button><br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.tel || '')}</span></td>
                             <td>${escapeHtml([d.car, d.number].filter(Boolean).join(' / '))}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.mileage ? d.mileage + ' km' : '')}</span></td>
                             <td>${escapeHtml(d.date || '')}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.daishaId ? '代車: ' + getDaishaLabel(d.daishaId) : '')}</span></td>
                             <td><span class="status available">${escapeHtml(d.status || '作業中')}</span><br><span style="color:var(--muted);font-size:12px">${escapeHtml(formatPayment(d.payment))}</span></td>
                         </tr>
                     `).join('');
                 }
+
+                window.showDepositDetail = function(id){
+                    const deposit = loadDeposits().find(d => d.id === id);
+                    if(!deposit) return alert('預かり車両が見つかりません');
+
+                    document.getElementById('deposit-detail-title').textContent = deposit.customer || '預かり詳細';
+                    document.getElementById('detail-deposit-customer').textContent = deposit.customer || '';
+                    document.getElementById('detail-deposit-tel').textContent = deposit.tel || '-';
+                    document.getElementById('detail-deposit-car').textContent = deposit.car || '';
+                    document.getElementById('detail-deposit-number').textContent = deposit.number || '-';
+                    document.getElementById('detail-deposit-mileage').textContent = deposit.mileage ? `${deposit.mileage} km` : '-';
+                    document.getElementById('detail-deposit-date').textContent = deposit.date || '-';
+                    document.getElementById('detail-deposit-daisha').textContent = deposit.daishaId ? getDaishaLabel(deposit.daishaId) : '-';
+                    document.getElementById('detail-deposit-payment').textContent = formatPayment(deposit.payment) || '-';
+                    document.getElementById('detail-deposit-work').textContent = deposit.work || '-';
+                    document.getElementById('detail-deposit-note').textContent = deposit.note || '-';
+                    document.getElementById('detail-deposit-status').innerHTML = `<span class="status available">${escapeHtml(deposit.status || '作業中')}</span>`;
+
+                    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                    document.getElementById('deposit-detail').classList.add('active');
+                    document.querySelectorAll('.nav li').forEach(li=>li.classList.toggle('active', li.dataset.view==='deposit'));
+                };
+
+                window.showDepositList = function(){
+                    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                    document.getElementById('deposit').classList.add('active');
+                    document.querySelectorAll('.nav li').forEach(li=>li.classList.toggle('active', li.dataset.view==='deposit'));
+                };
 
                 window.submitDepositReceive = function(){
                     const customer = document.getElementById('deposit-customer')?.value.trim() || '';
