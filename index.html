@@ -707,12 +707,11 @@
                     </div>
                     <div class="form-group">
                         <label>支払方法</label>
-                        <select id="deposit-payment">
-                            <option value="">選択してください</option>
+                        <select id="deposit-payment" multiple size="5">
                             <option>現金</option>
-                            <option>クレジットカード</option>
                             <option>振込</option>
-                            <option>請求書</option>
+                            <option>クレジットカード</option>
+                            <option>電子マネー</option>
                             <option>その他</option>
                         </select>
                     </div>
@@ -1270,7 +1269,7 @@
                         d.work,
                         d.mileage,
                         getDaishaLabel(d.daishaId),
-                        d.payment,
+                        formatPayment(d.payment),
                         d.note,
                         d.status
                     ].join(' ').toLowerCase().includes(keyword));
@@ -1725,6 +1724,17 @@
                     return [daisha.make, daisha.number].filter(Boolean).join(' / ') || daisha.id;
                 }
 
+                function getSelectedValues(selectId){
+                    const select = document.getElementById(selectId);
+                    if(!select) return [];
+                    return Array.from(select.selectedOptions).map(option => option.value).filter(Boolean);
+                }
+
+                function formatPayment(payment){
+                    if(Array.isArray(payment)) return payment.join(' / ');
+                    return payment || '';
+                }
+
                 function renderDeposits(){
                     const tbody = document.getElementById('deposit-tbody');
                     const dashboardDepositCount = document.getElementById('dashboard-deposit-count');
@@ -1743,7 +1753,7 @@
                             <td>${escapeHtml(d.customer || '')}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.tel || '')}</span></td>
                             <td>${escapeHtml([d.car, d.number].filter(Boolean).join(' / '))}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.mileage ? d.mileage + ' km' : '')}</span></td>
                             <td>${escapeHtml(d.date || '')}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.daishaId ? '代車: ' + getDaishaLabel(d.daishaId) : '')}</span></td>
-                            <td><span class="status available">${escapeHtml(d.status || '作業中')}</span><br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.payment || '')}</span></td>
+                            <td><span class="status available">${escapeHtml(d.status || '作業中')}</span><br><span style="color:var(--muted);font-size:12px">${escapeHtml(formatPayment(d.payment))}</span></td>
                         </tr>
                     `).join('');
                 }
@@ -1767,7 +1777,7 @@
                         mileage: document.getElementById('deposit-mileage')?.value || '',
                         tel: document.getElementById('deposit-tel')?.value.trim() || '',
                         daishaId: document.getElementById('deposit-daisha')?.value || '',
-                        payment: document.getElementById('deposit-payment')?.value || '',
+                        payment: getSelectedValues('deposit-payment'),
                         note: document.getElementById('deposit-note')?.value.trim() || '',
                         status: '作業中'
                     });
@@ -1778,7 +1788,12 @@
 
                     ['deposit-customer','deposit-car','deposit-number','deposit-date','deposit-work','deposit-mileage','deposit-tel','deposit-daisha','deposit-payment','deposit-note'].forEach(id=>{
                         const el = document.getElementById(id);
-                        if(el) el.value = '';
+                        if(!el) return;
+                        if(el.multiple){
+                            Array.from(el.options).forEach(option => option.selected = false);
+                        }else{
+                            el.value = '';
+                        }
                     });
 
                     alert('受入登録しました');
