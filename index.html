@@ -424,7 +424,7 @@
                         <div class="panel">
                             <h3 style="margin:0 0 12px">発地</h3>
                             <div style="margin-bottom:12px">
-                                <input type="text" id="input-from" placeholder="例：Museuм" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                <input type="text" id="input-from" placeholder="例：MuseuM" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
                                 <button onclick="addOption('from')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
                             </div>
                             <ul id="list-from" style="list-style:none;padding:0;margin:0">
@@ -643,7 +643,8 @@
                     </div>
                     <div class="form-group">
                         <label>使用者</label>
-                        <select id="loan-user" required></select>
+                        <select id="loan-user-select"></select>
+                        <input type="text" id="loan-user" placeholder="使用者を入力" required style="margin-top:6px">
                     </div>
                     <div class="form-group">
                         <label>貸渡時間</label>
@@ -752,7 +753,8 @@
                     </div>
                     <div class="form-group">
                         <label>使用者</label>
-                        <select id="edit-loan-user" required></select>
+                        <select id="edit-loan-user-select"></select>
+                        <input type="text" id="edit-loan-user" required style="margin-top:6px">
                     </div>
                     <div class="form-group">
                         <label>貸渡時間</label>
@@ -935,8 +937,29 @@
                     purpose: ['loan-purpose', 'edit-loan-purpose'],
                     from: ['loan-from', 'edit-loan-from'],
                     to: ['loan-to', 'edit-loan-to'],
-                    user: ['loan-user', 'edit-loan-user']
+                    user: ['loan-user-select', 'edit-loan-user-select']
                 };
+                const USER_SELECT_TO_INPUT = {
+                    'loan-user-select': 'loan-user',
+                    'edit-loan-user-select': 'edit-loan-user'
+                };
+                const LOCATION_OPTION_FIXES = {
+                    'Museum': 'MuseuM',
+                    'Museuｍ': 'MuseuM',
+                    'Museuм': 'MuseuM'
+                };
+
+                function normalizeOptionValue(value){
+                    return LOCATION_OPTION_FIXES[value] || value;
+                }
+
+                function normalizeOptions(key, opts){
+                    const normalized = opts.map(opt => normalizeOptionValue(String(opt || '').trim())).filter(Boolean);
+                    if((key === 'from' || key === 'to') && !normalized.includes('MuseuM')){
+                        normalized.unshift('MuseuM');
+                    }
+                    return Array.from(new Set(normalized));
+                }
 
                 // LocalStorage から初期化
                 function initSettings(){
@@ -944,8 +967,8 @@
                         if(!localStorage.getItem(`options-${key}`)){
                             const defaults = {
                                 purpose: ['特定整備', '中古新規', '予備検査'],
-                                from: ['Museuм', '下諏訪', '岡谷', '松本陸運局'],
-                                to: ['Museuм', '下諏訪', '岡谷', '松本陸運局'],
+                                from: ['MuseuM', '下諏訪', '岡谷', '松本陸運局'],
+                                to: ['MuseuM', '下諏訪', '岡谷', '松本陸運局'],
                                 user: []
                             };
                             localStorage.setItem(`options-${key}`, JSON.stringify(defaults[key]||[]));
@@ -958,7 +981,11 @@
                 // Datalist 要素を動的に更新
                 function refreshAllDataLists(){
                     CONFIG_KEYS.forEach(key=>{
-                        const opts = JSON.parse(localStorage.getItem(`options-${key}`)||'[]');
+                        const rawOpts = JSON.parse(localStorage.getItem(`options-${key}`)||'[]');
+                        const opts = normalizeOptions(key, rawOpts);
+                        if(JSON.stringify(rawOpts) !== JSON.stringify(opts)){
+                            localStorage.setItem(`options-${key}`, JSON.stringify(opts));
+                        }
                         const datalist = document.getElementById(DATALIST_IDS[key]);
                         if(datalist){
                             datalist.innerHTML = opts.map(opt=>`<option value="${opt}"></option>`).join('');
@@ -972,6 +999,13 @@
                                 ...opts.map(opt=>`<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`)
                             ].join('');
                             if(currentValue) setSelectValue(select, currentValue);
+                            const targetInputId = USER_SELECT_TO_INPUT[id];
+                            if(targetInputId){
+                                select.onchange = () => {
+                                    const targetInput = document.getElementById(targetInputId);
+                                    if(targetInput && select.value) targetInput.value = select.value;
+                                };
+                            }
                         });
                     });
                 }
@@ -1641,7 +1675,8 @@
                     document.getElementById('edit-loan-vin').value = loan.vin||'';
                     setSelectValue('edit-loan-from', loan.from||'');
                     setSelectValue('edit-loan-to', loan.to||'');
-                    setSelectValue('edit-loan-user', loan.user||'');
+                    document.getElementById('edit-loan-user').value = loan.user||'';
+                    setSelectValue('edit-loan-user-select', loan.user||'');
                     document.getElementById('edit-loan-start').value = loan.start||'';
                     document.getElementById('edit-loan-end').value = loan.returnedAt||'';
                     document.getElementById('modal-loan-edit').classList.add('active');
