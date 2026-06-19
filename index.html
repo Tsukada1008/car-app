@@ -1993,7 +1993,7 @@
                             daisha.loanTo = formatCustomerName(deposit.customer);
                             daisha.loanDate = deposit.date || '';
                             daisha.loanFuel = deposit.fuel || '';
-                            daisha.loanNote = ['預かり車両', categoryText, deposit.car, deposit.number, deposit.work]
+                            daisha.loanNote = ['預かり車両', categoryText, deposit.car, deposit.number]
                                 .filter(Boolean)
                                 .join(' / ');
                             daisha.returnDate = '';
