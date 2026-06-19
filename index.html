@@ -405,6 +405,7 @@
                             <div class="detail-item"><label>入庫日</label><div id="detail-deposit-date"></div></div>
                             <div class="detail-item"><label>代車</label><div id="detail-deposit-daisha"></div></div>
                             <div class="detail-item"><label>支払方法</label><div id="detail-deposit-payment"></div></div>
+                            <div class="detail-item"><label>入庫区分</label><div id="detail-deposit-category"></div></div>
                             <div class="detail-item"><label>作業内容</label><div id="detail-deposit-work"></div></div>
                             <div class="detail-item"><label>備考</label><div id="detail-deposit-note"></div></div>
                             <div class="detail-item"><label>ステータス</label><div id="detail-deposit-status"></div></div>
@@ -720,8 +721,12 @@
                         <input type="tel" id="deposit-tel" placeholder="例：090-1234-5678">
                     </div>
                     <div class="form-group">
-                        <label>作業内容</label>
-                        <textarea id="deposit-work" placeholder="例：エンジンオイル交換、修理内容など"></textarea>
+                        <label>入庫区分</label>
+                        <select id="deposit-category" multiple size="3">
+                            <option>整備</option>
+                            <option>鈑金</option>
+                            <option>その他</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>代車</label>
@@ -736,6 +741,10 @@
                             <option>電子マネー</option>
                             <option>その他</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>作業内容</label>
+                        <textarea id="deposit-work" placeholder="例：エンジンオイル交換、修理内容など"></textarea>
                     </div>
                     <div class="form-group">
                         <label>備考</label>
@@ -781,8 +790,12 @@
                         <input type="tel" id="edit-deposit-tel">
                     </div>
                     <div class="form-group">
-                        <label>作業内容</label>
-                        <textarea id="edit-deposit-work"></textarea>
+                        <label>入庫区分</label>
+                        <select id="edit-deposit-category" multiple size="3">
+                            <option>整備</option>
+                            <option>鈑金</option>
+                            <option>その他</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>代車</label>
@@ -797,6 +810,10 @@
                             <option>電子マネー</option>
                             <option>その他</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>作業内容</label>
+                        <textarea id="edit-deposit-work"></textarea>
                     </div>
                     <div class="form-group">
                         <label>ステータス</label>
@@ -1924,11 +1941,12 @@
                     if(deposit.daishaId){
                         const daisha = daishas.find(d => d.id === deposit.daishaId);
                         if(daisha){
+                            const categoryText = formatPayment(deposit.category);
                             daisha.status = '\u8cb8\u51fa\u4e2d';
                             daisha.loanTo = deposit.customer || '';
                             daisha.loanDate = deposit.date || '';
                             daisha.loanFuel = '';
-                            daisha.loanNote = ['預かり車両', deposit.car, deposit.number, deposit.work]
+                            daisha.loanNote = ['預かり車両', categoryText, deposit.car, deposit.number, deposit.work]
                                 .filter(Boolean)
                                 .join(' / ');
                             daisha.returnDate = '';
@@ -1994,6 +2012,7 @@
                     document.getElementById('detail-deposit-date').textContent = deposit.date || '-';
                     document.getElementById('detail-deposit-daisha').textContent = deposit.daishaId ? getDaishaLabel(deposit.daishaId) : '-';
                     document.getElementById('detail-deposit-payment').textContent = formatPayment(deposit.payment) || '-';
+                    document.getElementById('detail-deposit-category').textContent = formatPayment(deposit.category) || '-';
                     document.getElementById('detail-deposit-work').textContent = deposit.work || '-';
                     document.getElementById('detail-deposit-note').textContent = deposit.note || '-';
                     document.getElementById('detail-deposit-status').innerHTML = `<span class="status available">${escapeHtml(deposit.status || '作業中')}</span>`;
@@ -2026,6 +2045,7 @@
                     document.getElementById('edit-deposit-status').value = deposit.status || '作業中';
                     document.getElementById('edit-deposit-note').value = deposit.note || '';
                     renderDepositDaishaOptions(loadDaishas(), 'edit-deposit-daisha', deposit.daishaId || '');
+                    setSelectedValues('edit-deposit-category', deposit.category || []);
                     setSelectedValues('edit-deposit-payment', deposit.payment || []);
                     document.getElementById('modal-deposit-edit')?.classList.add('active');
                 };
@@ -2053,6 +2073,7 @@
                         date: document.getElementById('edit-deposit-date')?.value || '',
                         tel: document.getElementById('edit-deposit-tel')?.value.trim() || '',
                         work: document.getElementById('edit-deposit-work')?.value.trim() || '',
+                        category: getSelectedValues('edit-deposit-category'),
                         daishaId: document.getElementById('edit-deposit-daisha')?.value || '',
                         payment: getSelectedValues('edit-deposit-payment'),
                         status: document.getElementById('edit-deposit-status')?.value.trim() || '作業中',
@@ -2084,6 +2105,7 @@
                         number: document.getElementById('deposit-number')?.value.trim() || '',
                         date: document.getElementById('deposit-date')?.value || '',
                         work: document.getElementById('deposit-work')?.value.trim() || '',
+                        category: getSelectedValues('deposit-category'),
                         mileage: document.getElementById('deposit-mileage')?.value || '',
                         tel: document.getElementById('deposit-tel')?.value.trim() || '',
                         daishaId: document.getElementById('deposit-daisha')?.value || '',
@@ -2098,7 +2120,7 @@
                     renderDeposits();
                     document.getElementById('modal-deposit-receive')?.classList.remove('active');
 
-                    ['deposit-customer','deposit-car','deposit-number','deposit-date','deposit-work','deposit-mileage','deposit-tel','deposit-daisha','deposit-payment','deposit-note'].forEach(id=>{
+                    ['deposit-customer','deposit-car','deposit-number','deposit-date','deposit-work','deposit-category','deposit-mileage','deposit-tel','deposit-daisha','deposit-payment','deposit-note'].forEach(id=>{
                         const el = document.getElementById(id);
                         if(!el) return;
                         if(el.multiple){
