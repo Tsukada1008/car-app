@@ -35,12 +35,12 @@
             .status.loaned{background:#fef3c7;color:#92400e}
             .status.maintenance{background:#fce7f3;color:#9d174d}
             .status.returned{background:#e0f2fe;color:#075985}
-            .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999}
+            .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999;padding:16px;overflow:auto}
             .modal.active{display:flex;justify-content:center;align-items:center}
-            .modal-content{background:var(--card);padding:24px;border-radius:8px;width:90%;max-width:500px;box-shadow:0 10px 40px rgba(0,0,0,0.2)}
-            .modal-header{margin-bottom:16px}
+            .modal-content{background:var(--card);padding:24px;border-radius:8px;width:90%;max-width:500px;max-height:calc(100vh - 32px);box-shadow:0 10px 40px rgba(0,0,0,0.2);display:flex;flex-direction:column}
+            .modal-header{margin-bottom:16px;flex:0 0 auto}
             .modal-header h2{margin:0;font-size:18px}
-            .modal-body{margin-bottom:16px}
+            .modal-body{margin-bottom:16px;overflow-y:auto;min-height:0;padding-right:4px;-webkit-overflow-scrolling:touch}
             .form-group{margin-bottom:12px}
             .form-group label{display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--muted)}
             .form-group input,.form-group select,.form-group textarea{width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;font-size:14px;font-family:inherit}
@@ -48,7 +48,7 @@
             .checkbox-group{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
             .checkbox-option{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;font-size:14px;cursor:pointer}
             .checkbox-option input{width:auto;margin:0}
-            .modal-footer{display:flex;gap:8px;justify-content:flex-end}
+            .modal-footer{display:flex;gap:8px;justify-content:flex-end;flex:0 0 auto}
             .modal-footer button{padding:8px 16px;border-radius:6px;border:1px solid #d1d5db;background:transparent;cursor:pointer}
             .modal-footer button.primary{background:var(--accent);color:#fff;border:0}
 
@@ -134,6 +134,11 @@
                 .cards{flex-direction:column}
                 .vehicle-detail-grid{grid-template-columns:1fr}
                 .detail-actions button,.back-btn{width:100%}
+                .modal{align-items:flex-start;padding:10px}
+                .modal.active{align-items:flex-start}
+                .modal-content{width:100%;max-height:calc(100dvh - 20px);padding:16px}
+                .modal-footer{position:sticky;bottom:0;background:var(--card);padding-top:10px}
+                .modal-footer button{flex:1}
                 table{min-width:680px}
             }
             @media(max-width:640px){
