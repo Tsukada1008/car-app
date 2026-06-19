@@ -192,7 +192,7 @@
                     <div class="cards">
                         <div class="card">
                             <h3>預かり車両</h3>
-                            <p>24</p>
+                            <p id="dashboard-deposit-count">0</p>
                         </div>
                         <div class="card">
                             <h3>貸出可能代車</h3>
@@ -386,14 +386,7 @@
                                     <th>ステータス</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>DP-100</td>
-                                    <td>顧客B</td>
-                                    <td>トヨタ カローラ / 川崎 500 さ 33-44</td>
-                                    <td>2026-06-10</td>
-                                    <td><span class="status available">作業中</span></td>
-                                </tr>
+                            <tbody id="deposit-tbody">
                             </tbody>
                         </table>
                     </div>
@@ -682,36 +675,51 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label>顧客名</label>
-                        <input type="text" placeholder="顧客名">
+                        <input type="text" id="deposit-customer" placeholder="顧客名">
                     </div>
                     <div class="form-group">
                         <label>車種</label>
-                        <input type="text" placeholder="例：カローラ">
+                        <input type="text" id="deposit-car" placeholder="例：カローラ">
                     </div>
                     <div class="form-group">
                         <label>ナンバー</label>
-                        <input type="text" placeholder="例：川崎 500 さ 33-44">
+                        <input type="text" id="deposit-number" placeholder="例：川崎 500 さ 33-44">
                     </div>
                     <div class="form-group">
                         <label>入庫日</label>
-                        <input type="date">
+                        <input type="date" id="deposit-date">
                     </div>
                     <div class="form-group">
                         <label>作業内容</label>
-                        <textarea placeholder="例：エンジンオイル交換、修理内容など"></textarea>
+                        <textarea id="deposit-work" placeholder="例：エンジンオイル交換、修理内容など"></textarea>
                     </div>
                     <div class="form-group">
-                        <label>見積り金額</label>
-                        <input type="number" placeholder="50000">
+                        <label>走行距離</label>
+                        <input type="number" id="deposit-mileage" placeholder="例：50000">
                     </div>
                     <div class="form-group">
-                        <label>保管場所</label>
-                        <input type="text" placeholder="例：第1保管所">
+                        <label>TEL</label>
+                        <input type="tel" id="deposit-tel" placeholder="例：090-1234-5678">
+                    </div>
+                    <div class="form-group">
+                        <label>代車</label>
+                        <select id="deposit-daisha"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>支払方法</label>
+                        <select id="deposit-payment">
+                            <option value="">選択してください</option>
+                            <option>現金</option>
+                            <option>クレジットカード</option>
+                            <option>振込</option>
+                            <option>請求書</option>
+                            <option>その他</option>
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button data-modal-close>キャンセル</button>
-                    <button class="primary" onclick="alert('受入登録しました')">登録</button>
+                    <button class="primary" onclick="submitDepositReceive()">登録</button>
                 </div>
             </div>
         </div>
@@ -906,9 +914,10 @@
                 async function hydrateCloudData(){
                     if(!isCloudSyncEnabled()) return;
 
-                    const [daishas, loans, ...optionSets] = await Promise.all([
+                    const [daishas, loans, deposits, ...optionSets] = await Promise.all([
                         loadStoreFromCloud('daishas'),
                         loadStoreFromCloud('loans'),
+                        loadStoreFromCloud('deposits'),
                         ...CONFIG_KEYS.map(key => loadStoreFromCloud(`options-${key}`))
                     ]);
 
@@ -920,6 +929,10 @@
                         localStorage.setItem('loans', JSON.stringify(loans));
                         importUsersFromLoans(loans);
                         renderLoans();
+                    }
+                    if(deposits){
+                        localStorage.setItem('deposits', JSON.stringify(deposits));
+                        renderDeposits();
                     }
                     optionSets.forEach((opts, index)=>{
                         if(!opts) return;
@@ -1243,10 +1256,19 @@
                 }
 
                 function getDepositSearchResults(keyword){
-                    const rows = Array.from(document.querySelectorAll('#deposit tbody tr'));
-                    return rows
-                        .map(row => Array.from(row.children).map(cell => cell.textContent.trim()))
-                        .filter(cells => cells.join(' ').toLowerCase().includes(keyword));
+                    return loadDeposits().filter(d => [
+                        d.id,
+                        d.customer,
+                        d.tel,
+                        d.car,
+                        d.number,
+                        d.date,
+                        d.work,
+                        d.mileage,
+                        getDaishaLabel(d.daishaId),
+                        d.payment,
+                        d.status
+                    ].join(' ').toLowerCase().includes(keyword));
                 }
 
                 function renderDepositSearchRows(items){
@@ -1254,13 +1276,13 @@
                         return '<div class="empty-state">該当する預かり車両はありません</div>';
                     }
 
-                    const rows = items.map(cells => `
+                    const rows = items.map(d => `
                         <tr>
-                            <td>${escapeHtml(cells[0] || '')}</td>
-                            <td>${escapeHtml(cells[1] || '')}</td>
-                            <td>${escapeHtml(cells[2] || '')}</td>
-                            <td>${escapeHtml(cells[3] || '')}</td>
-                            <td>${escapeHtml(cells[4] || '')}</td>
+                            <td>${escapeHtml(d.id || '')}</td>
+                            <td>${escapeHtml(d.customer || '')}</td>
+                            <td>${escapeHtml([d.car, d.number].filter(Boolean).join(' / '))}</td>
+                            <td>${escapeHtml(d.date || '')}</td>
+                            <td>${escapeHtml(d.status || '作業中')}</td>
                         </tr>
                     `).join('');
 
@@ -1330,6 +1352,7 @@
                     if(!lists || lists.length===0) return;
                     const daishas = loadDaishas();
                     renderDaishaDashboardStats(daishas);
+                    renderDepositDaishaOptions(daishas);
                     lists.forEach(tb=>{
                         const mode = tb.dataset.mode || 'overview';
                         const displayDaishas = mode === 'overview' ? daishas.filter(isAvailableDaisha) : daishas;
@@ -1663,6 +1686,99 @@
                 };
 
                 normalizeDaishaDetailLabels();
+
+                function loadDeposits(){
+                    try{ return JSON.parse(localStorage.getItem('deposits')||'[]'); }catch(e){return[]}
+                }
+
+                function saveDeposits(arr){
+                    localStorage.setItem('deposits', JSON.stringify(arr));
+                    syncStoreToCloud('deposits', arr);
+                }
+
+                function renderDepositDaishaOptions(daishas = loadDaishas()){
+                    const select = document.getElementById('deposit-daisha');
+                    if(!select) return;
+
+                    const currentValue = select.value;
+                    const options = daishas.map(d=>{
+                        const label = [d.make, d.number].filter(Boolean).join(' / ') || d.id;
+                        return `<option value="${escapeHtml(d.id)}">${escapeHtml(label)}</option>`;
+                    }).join('');
+
+                    select.innerHTML = `<option value="">なし</option>${options}`;
+                    if(currentValue && daishas.some(d => d.id === currentValue)){
+                        select.value = currentValue;
+                    }
+                }
+
+                function getDaishaLabel(id){
+                    if(!id) return '';
+                    const daisha = loadDaishas().find(d => d.id === id);
+                    if(!daisha) return id;
+                    return [daisha.make, daisha.number].filter(Boolean).join(' / ') || daisha.id;
+                }
+
+                function renderDeposits(){
+                    const tbody = document.getElementById('deposit-tbody');
+                    const dashboardDepositCount = document.getElementById('dashboard-deposit-count');
+                    if(dashboardDepositCount) dashboardDepositCount.textContent = loadDeposits().length;
+                    if(!tbody) return;
+
+                    const deposits = loadDeposits();
+                    if(deposits.length === 0){
+                        tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">データがありません</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = deposits.map(d=>`
+                        <tr>
+                            <td>${escapeHtml(d.id || '')}</td>
+                            <td>${escapeHtml(d.customer || '')}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.tel || '')}</span></td>
+                            <td>${escapeHtml([d.car, d.number].filter(Boolean).join(' / '))}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.mileage ? d.mileage + ' km' : '')}</span></td>
+                            <td>${escapeHtml(d.date || '')}<br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.daishaId ? '代車: ' + getDaishaLabel(d.daishaId) : '')}</span></td>
+                            <td><span class="status available">${escapeHtml(d.status || '作業中')}</span><br><span style="color:var(--muted);font-size:12px">${escapeHtml(d.payment || '')}</span></td>
+                        </tr>
+                    `).join('');
+                }
+
+                window.submitDepositReceive = function(){
+                    const customer = document.getElementById('deposit-customer')?.value.trim() || '';
+                    const car = document.getElementById('deposit-car')?.value.trim() || '';
+                    if(!customer || !car){
+                        alert('顧客名と車種を入力してください');
+                        return;
+                    }
+
+                    const deposits = loadDeposits();
+                    deposits.unshift({
+                        id: 'DP-' + Date.now(),
+                        customer,
+                        car,
+                        number: document.getElementById('deposit-number')?.value.trim() || '',
+                        date: document.getElementById('deposit-date')?.value || '',
+                        work: document.getElementById('deposit-work')?.value.trim() || '',
+                        mileage: document.getElementById('deposit-mileage')?.value || '',
+                        tel: document.getElementById('deposit-tel')?.value.trim() || '',
+                        daishaId: document.getElementById('deposit-daisha')?.value || '',
+                        payment: document.getElementById('deposit-payment')?.value || '',
+                        status: '作業中'
+                    });
+
+                    saveDeposits(deposits);
+                    renderDeposits();
+                    document.getElementById('modal-deposit-receive')?.classList.remove('active');
+
+                    ['deposit-customer','deposit-car','deposit-number','deposit-date','deposit-work','deposit-mileage','deposit-tel','deposit-daisha','deposit-payment'].forEach(id=>{
+                        const el = document.getElementById(id);
+                        if(el) el.value = '';
+                    });
+
+                    alert('受入登録しました');
+                };
+
+                renderDepositDaishaOptions();
+                renderDeposits();
 
                 function loadLoans(){
                     try{ return JSON.parse(localStorage.getItem('loans')||'[]'); }catch(e){return[]}
