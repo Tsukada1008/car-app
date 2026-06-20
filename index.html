@@ -51,6 +51,21 @@
             .modal-footer{display:flex;gap:8px;justify-content:flex-end;flex:0 0 auto}
             .modal-footer button{padding:8px 16px;border-radius:6px;border:1px solid #d1d5db;background:transparent;cursor:pointer}
             .modal-footer button.primary{background:var(--accent);color:#fff;border:0}
+            .form-label-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
+            .form-label-row label{margin-bottom:0}
+            .damage-check-button{padding:5px 9px;border:1px solid #bfdbfe;border-radius:6px;background:#eff6ff;color:#075985;font-size:12px;font-weight:600;cursor:pointer}
+            .damage-check-button:hover{background:#dbeafe}
+            .damage-modal-content{max-width:680px}
+            .damage-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+            .damage-tool{min-width:42px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;color:#374151;font-weight:700;cursor:pointer}
+            .damage-tool.active{background:#1565c0;border-color:#1565c0;color:#fff}
+            .damage-tool-clear{margin-left:auto;color:#b91c1c;border-color:#fecaca}
+            .damage-sheet-wrap{max-width:348px;margin:0 auto;border:1px solid #e5e7eb;background:#fff}
+            .damage-sheet{position:relative;line-height:0}
+            .damage-sheet img{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none}
+            .damage-mark-layer{position:absolute;inset:0;cursor:crosshair}
+            .damage-stamp{position:absolute;transform:translate(-50%,-50%);color:#dc2626;font-size:24px;font-weight:800;line-height:1;text-shadow:0 1px 1px #fff;pointer-events:none}
+            .damage-stamp.wave{font-size:18px;letter-spacing:-2px}
 
             .vehicle-detail-grid{
                 display:grid;
@@ -139,6 +154,8 @@
                 .modal-content{width:100%;max-height:calc(100dvh - 20px);padding:16px}
                 .modal-footer{position:sticky;bottom:0;background:var(--card);padding-top:10px}
                 .modal-footer button{flex:1}
+                .damage-tool{flex:1}
+                .damage-tool-clear{margin-left:0}
                 table{min-width:680px}
             }
             @media(max-width:640px){
@@ -783,7 +800,10 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>作業内容</label>
+                        <div class="form-label-row">
+                            <label>作業内容</label>
+                            <button type="button" class="damage-check-button" onclick="openDamageCheck('receive')">キズ確認</button>
+                        </div>
                         <textarea id="deposit-work" placeholder="例：エンジンオイル交換、修理内容など"></textarea>
                     </div>
                     <div class="form-group">
@@ -873,7 +893,10 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>作業内容</label>
+                        <div class="form-label-row">
+                            <label>作業内容</label>
+                            <button type="button" class="damage-check-button" onclick="openDamageCheck('edit')">キズ確認</button>
+                        </div>
                         <textarea id="edit-deposit-work"></textarea>
                     </div>
                     <div class="form-group">
@@ -925,6 +948,34 @@
                 <div class="modal-footer">
                     <button data-modal-close>キャンセル</button>
                     <button class="primary" onclick="submitDepositDelivery()">納車済みにする</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- モーダル: キズ確認 -->
+        <div id="modal-damage-check" class="modal">
+            <div class="modal-content damage-modal-content">
+                <div class="modal-header">
+                    <h2>キズ確認</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="damage-toolbar" aria-label="スタンプ選択">
+                        <button type="button" class="damage-tool active" data-damage-stamp="A" onclick="setDamageStamp('A')">A</button>
+                        <button type="button" class="damage-tool" data-damage-stamp="U" onclick="setDamageStamp('U')">U</button>
+                        <button type="button" class="damage-tool" data-damage-stamp="wave" onclick="setDamageStamp('wave')">波線</button>
+                        <button type="button" class="damage-tool" onclick="undoDamageStamp()">戻す</button>
+                        <button type="button" class="damage-tool damage-tool-clear" onclick="clearDamageStamps()">クリア</button>
+                    </div>
+                    <div class="damage-sheet-wrap">
+                        <div id="damage-sheet" class="damage-sheet">
+                            <img src="assets/check-sheet.jpg" alt="車両キズ確認シート">
+                            <div id="damage-mark-layer" class="damage-mark-layer"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button data-modal-close>キャンセル</button>
+                    <button class="primary" onclick="saveDamageCheck()">反映</button>
                 </div>
             </div>
         </div>
@@ -1971,6 +2022,82 @@
                 let activeDepositDetailId = '';
                 let editingDepositId = '';
                 let deliveryDepositId = '';
+                let receiveDamageMarks = [];
+                let editDamageMarks = [];
+                let pendingDamageMarks = [];
+                let damageCheckMode = 'receive';
+                let activeDamageStamp = 'A';
+
+                function cloneDamageMarks(marks){
+                    return Array.isArray(marks) ? marks
+                        .filter(mark => mark && ['A', 'U', 'wave'].includes(mark.type))
+                        .map(mark => ({
+                            type: mark.type,
+                            x: Math.max(0, Math.min(100, Number(mark.x) || 0)),
+                            y: Math.max(0, Math.min(100, Number(mark.y) || 0))
+                        }))
+                        : [];
+                }
+
+                function renderDamageMarks(){
+                    const layer = document.getElementById('damage-mark-layer');
+                    if(!layer) return;
+                    layer.innerHTML = pendingDamageMarks.map(mark => {
+                        const label = mark.type === 'wave' ? '~~~' : mark.type;
+                        const className = mark.type === 'wave' ? 'damage-stamp wave' : 'damage-stamp';
+                        return `<span class="${className}" style="left:${mark.x}%;top:${mark.y}%">${label}</span>`;
+                    }).join('');
+                }
+
+                function updateDamageStampTools(){
+                    document.querySelectorAll('[data-damage-stamp]').forEach(button => {
+                        button.classList.toggle('active', button.dataset.damageStamp === activeDamageStamp);
+                    });
+                }
+
+                window.setDamageStamp = function(type){
+                    activeDamageStamp = ['A', 'U', 'wave'].includes(type) ? type : 'A';
+                    updateDamageStampTools();
+                };
+
+                window.openDamageCheck = function(mode){
+                    damageCheckMode = mode === 'edit' ? 'edit' : 'receive';
+                    pendingDamageMarks = cloneDamageMarks(damageCheckMode === 'edit' ? editDamageMarks : receiveDamageMarks);
+                    activeDamageStamp = 'A';
+                    updateDamageStampTools();
+                    renderDamageMarks();
+                    document.getElementById('modal-damage-check')?.classList.add('active');
+                };
+
+                window.undoDamageStamp = function(){
+                    pendingDamageMarks.pop();
+                    renderDamageMarks();
+                };
+
+                window.clearDamageStamps = function(){
+                    pendingDamageMarks = [];
+                    renderDamageMarks();
+                };
+
+                window.saveDamageCheck = function(){
+                    if(damageCheckMode === 'edit'){
+                        editDamageMarks = cloneDamageMarks(pendingDamageMarks);
+                    }else{
+                        receiveDamageMarks = cloneDamageMarks(pendingDamageMarks);
+                    }
+                    document.getElementById('modal-damage-check')?.classList.remove('active');
+                };
+
+                document.getElementById('damage-sheet')?.addEventListener('click', event => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    if(!rect.width || !rect.height) return;
+                    pendingDamageMarks.push({
+                        type: activeDamageStamp,
+                        x: Math.round(((event.clientX - rect.left) / rect.width) * 1000) / 10,
+                        y: Math.round(((event.clientY - rect.top) / rect.height) * 1000) / 10
+                    });
+                    renderDamageMarks();
+                });
 
                 function loadDeposits(){
                     try{ return JSON.parse(localStorage.getItem('deposits')||'[]'); }catch(e){return[]}
@@ -2319,6 +2446,7 @@
                     document.getElementById('edit-deposit-date').value = deposit.date || '';
                     document.getElementById('edit-deposit-tel').value = deposit.tel || '';
                     document.getElementById('edit-deposit-work').value = deposit.work || '';
+                    editDamageMarks = cloneDamageMarks(deposit.damageMarks);
                     document.getElementById('edit-deposit-status').value = normalizeDepositStatus(deposit.status);
                     document.getElementById('edit-deposit-note').value = deposit.note || '';
                     renderDepositDaishaOptions(loadDaishas(), 'edit-deposit-daisha', deposit.daishaId || '');
@@ -2356,6 +2484,7 @@
                         daishaId: document.getElementById('edit-deposit-daisha')?.value || '',
                         fuel: document.getElementById('edit-deposit-fuel')?.value || '',
                         payment: getSelectedValues('edit-deposit-payment'),
+                        damageMarks: cloneDamageMarks(editDamageMarks),
                         status: nextStatus,
                         deliveredAt: nextStatus === '納車済み' ? (deposits[idx].deliveredAt || getTodayDateString()) : '',
                         returnFuel: nextStatus === '納車済み' ? (deposits[idx].returnFuel || document.getElementById('edit-deposit-fuel')?.value || '') : '',
@@ -2397,6 +2526,7 @@
                         daishaId: document.getElementById('deposit-daisha')?.value || '',
                         fuel: document.getElementById('deposit-fuel')?.value || '',
                         payment: getSelectedValues('deposit-payment'),
+                        damageMarks: cloneDamageMarks(receiveDamageMarks),
                         note: document.getElementById('deposit-note')?.value.trim() || '',
                         status: normalizeDepositStatus(document.getElementById('deposit-status')?.value || '')
                     };
@@ -2420,6 +2550,7 @@
                             el.value = '';
                         }
                     });
+                    receiveDamageMarks = [];
 
                     alert('受入登録しました');
                 };
