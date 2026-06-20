@@ -65,7 +65,8 @@
             .damage-sheet img{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none}
             .damage-mark-layer{position:absolute;inset:0;cursor:crosshair}
             .damage-stamp{position:absolute;transform:translate(-50%,-50%);color:#dc2626;font-size:24px;font-weight:800;line-height:1;text-shadow:0 1px 1px #fff;pointer-events:none}
-            .damage-stamp.wave{font-size:18px;letter-spacing:-2px}
+            .damage-stamp.zigzag{font-size:22px;letter-spacing:-3px}
+            .damage-legend{margin:0 0 12px;padding:10px 12px;border-radius:6px;background:#f8fafc;color:#4b5563;font-size:12px;line-height:1.7}
 
             .vehicle-detail-grid{
                 display:grid;
@@ -962,9 +963,14 @@
                     <div class="damage-toolbar" aria-label="スタンプ選択">
                         <button type="button" class="damage-tool active" data-damage-stamp="A" onclick="setDamageStamp('A')">A</button>
                         <button type="button" class="damage-tool" data-damage-stamp="U" onclick="setDamageStamp('U')">U</button>
-                        <button type="button" class="damage-tool" data-damage-stamp="wave" onclick="setDamageStamp('wave')">波線</button>
+                        <button type="button" class="damage-tool" data-damage-stamp="AU" onclick="setDamageStamp('AU')">AU</button>
+                        <button type="button" class="damage-tool" data-damage-stamp="zigzag" onclick="setDamageStamp('zigzag')">ギザギザ</button>
                         <button type="button" class="damage-tool" onclick="undoDamageStamp()">戻す</button>
                         <button type="button" class="damage-tool damage-tool-clear" onclick="clearDamageStamps()">クリア</button>
+                    </div>
+                    <div class="damage-legend">
+                        A: 擦り傷　/　U: へこみ　/　AU: 擦り傷・へこみ　/　ギザギザ: 割れ<br>
+                        スタンプを選んでから、車両図の該当箇所をタップしてください。
                     </div>
                     <div class="damage-sheet-wrap">
                         <div id="damage-sheet" class="damage-sheet">
@@ -2030,9 +2036,9 @@
 
                 function cloneDamageMarks(marks){
                     return Array.isArray(marks) ? marks
-                        .filter(mark => mark && ['A', 'U', 'wave'].includes(mark.type))
+                        .filter(mark => mark && ['A', 'U', 'AU', 'zigzag', 'wave'].includes(mark.type))
                         .map(mark => ({
-                            type: mark.type,
+                            type: mark.type === 'wave' ? 'zigzag' : mark.type,
                             x: Math.max(0, Math.min(100, Number(mark.x) || 0)),
                             y: Math.max(0, Math.min(100, Number(mark.y) || 0))
                         }))
@@ -2043,8 +2049,8 @@
                     const layer = document.getElementById('damage-mark-layer');
                     if(!layer) return;
                     layer.innerHTML = pendingDamageMarks.map(mark => {
-                        const label = mark.type === 'wave' ? '~~~' : mark.type;
-                        const className = mark.type === 'wave' ? 'damage-stamp wave' : 'damage-stamp';
+                        const label = mark.type === 'zigzag' ? '^^^^' : mark.type;
+                        const className = mark.type === 'zigzag' ? 'damage-stamp zigzag' : 'damage-stamp';
                         return `<span class="${className}" style="left:${mark.x}%;top:${mark.y}%">${label}</span>`;
                     }).join('');
                 }
@@ -2056,7 +2062,7 @@
                 }
 
                 window.setDamageStamp = function(type){
-                    activeDamageStamp = ['A', 'U', 'wave'].includes(type) ? type : 'A';
+                    activeDamageStamp = ['A', 'U', 'AU', 'zigzag'].includes(type) ? type : 'A';
                     updateDamageStampTools();
                 };
 
