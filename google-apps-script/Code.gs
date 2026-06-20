@@ -106,6 +106,10 @@ function getPdfFolder_() {
   return folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
 }
 
+function authorizePdfStorage() {
+  return getPdfFolder_().getUrl();
+}
+
 function loadValue_(key) {
   const sheet = getDataSheet_();
   const values = sheet.getDataRange().getValues();
