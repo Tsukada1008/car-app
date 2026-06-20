@@ -1557,10 +1557,11 @@
                 function daishaMatchesKeyword(daisha, keyword, exactNumberOnly = false){
                     if(!keyword) return true;
                     if(exactNumberOnly && isNumberOnlySearch(keyword)){
-                        if(normalizeSearchNumber(keyword).length === 4){
-                            return getNumberLastFour(daisha.number) === normalizeSearchNumber(keyword);
+                        const numberKeyword = normalizeSearchNumber(keyword);
+                        if(numberKeyword.length <= 4){
+                            return getNumberLastFour(daisha.number).endsWith(numberKeyword);
                         }
-                        return normalizeSearchNumber(daisha.number) === normalizeSearchNumber(keyword);
+                        return normalizeSearchNumber(daisha.number) === numberKeyword;
                     }
                     const historyText = (daisha.history || [])
                         .map(h => [h.loanTo, h.loanDate, h.returnDate, h.loanNote, h.returnNote].join(' '))
