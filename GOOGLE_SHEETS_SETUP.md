@@ -48,3 +48,9 @@ const DEFAULT_GOOGLE_SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/xx
 
 現在の実装は仮運用向けです。
 同時に複数人が編集した場合、最後に保存した内容が優先されます。
+
+## PDF添付機能
+
+預かり車両の詳細画面で追加したPDFは、Google Driveの `MuseuM VMS PDFs` フォルダに保存されます。添付一覧はスプレッドシートの `Data` シートで管理されます。
+
+この機能を使う前に、ローカルの `google-apps-script/Code.gs` の最新版をApps Scriptへ貼り付け、保存後に `デプロイ` から新しいバージョンを作成してください。既存のWebアプリURLはそのまま利用できます。

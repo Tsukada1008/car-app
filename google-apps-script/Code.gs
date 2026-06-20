@@ -27,14 +27,79 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  const body = JSON.parse((e.postData && e.postData.contents) || '{}');
+  let body = {};
+  try {
+    body = JSON.parse((e.postData && e.postData.contents) || '{}');
+  } catch (err) {
+    body = {};
+  }
+
   if (body.action === 'save' && body.key) {
     saveValue_(body.key, Array.isArray(body.data) ? body.data : []);
+  } else if (body.action === 'uploadPdf') {
+    uploadPdf_(body);
+  } else if (body.action === 'deletePdf') {
+    deletePdf_(body);
   }
 
   return ContentService
     .createTextOutput(JSON.stringify({ok: true}))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function uploadPdf_(body) {
+  const depositId = String(body.depositId || '');
+  const fileName = String(body.fileName || 'document.pdf');
+  const base64 = String(body.base64 || '');
+  const mimeType = String(body.mimeType || 'application/pdf');
+
+  if (!depositId || !base64 || mimeType !== 'application/pdf') {
+    throw new Error('Invalid PDF upload request.');
+  }
+
+  const bytes = Utilities.base64Decode(base64);
+  const blob = Utilities.newBlob(bytes, mimeType, fileName);
+  const file = getPdfFolder_().createFile(blob);
+  const key = getPdfKey_(depositId);
+  const files = loadValue_(key);
+  const metadata = {
+    id: file.getId(),
+    name: file.getName(),
+    size: file.getSize(),
+    url: file.getUrl(),
+    uploadedAt: new Date().toISOString()
+  };
+
+  files.push(metadata);
+  saveValue_(key, files);
+}
+
+function deletePdf_(body) {
+  const depositId = String(body.depositId || '');
+  const fileId = String(body.fileId || '');
+  if (!depositId || !fileId) return;
+
+  try {
+    DriveApp.getFileById(fileId).setTrashed(true);
+  } catch (err) {
+    // The metadata must still be removable if the file was already deleted.
+  }
+
+  const key = getPdfKey_(depositId);
+  const files = loadValue_(key).filter(function(file) {
+    return file && file.id !== fileId;
+  });
+  saveValue_(key, files);
+}
+
+function getPdfKey_(depositId) {
+  return 'deposit-pdfs-' + depositId;
+}
+
+function getPdfFolder_() {
+  const folderName = 'MuseuM VMS PDFs';
+  const folders = DriveApp.getFoldersByName(folderName);
+  return folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
 }
 
 function loadValue_(key) {

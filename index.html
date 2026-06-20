@@ -114,6 +114,16 @@
                 gap:8px;
                 flex-wrap:wrap;
             }
+            .deposit-pdf-section{margin-top:20px;padding-top:16px;border-top:1px solid #e5e7eb}
+            .deposit-pdf-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+            .deposit-pdf-heading h3{margin:0;font-size:15px}
+            .pdf-upload-button{padding:8px 12px;border:0;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer}
+            .deposit-pdf-list{display:grid;gap:8px}
+            .deposit-pdf-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #eef2f7}
+            .deposit-pdf-item:last-child{border-bottom:0}
+            .deposit-pdf-name{color:var(--accent);font-weight:600;text-decoration:none;overflow-wrap:anywhere}
+            .deposit-pdf-meta{margin-top:3px;color:var(--muted);font-size:12px}
+            .deposit-pdf-delete{padding:6px 10px;border:1px solid #fecaca;border-radius:6px;background:#fff;color:#b91c1c;cursor:pointer}
             .history-table{min-width:760px}
             .history-table td{vertical-align:top}
             .empty-state{color:var(--muted);padding:10px 0}
@@ -148,6 +158,10 @@
                 .cards{flex-direction:column}
                 .vehicle-detail-grid{grid-template-columns:1fr}
                 .detail-actions button,.back-btn{width:100%}
+                .deposit-pdf-heading{align-items:stretch;flex-direction:column}
+                .pdf-upload-button{width:100%}
+                .deposit-pdf-item{align-items:stretch;flex-direction:column}
+                .deposit-pdf-delete{width:100%}
                 .modal{align-items:flex-start;padding:10px}
                 .modal.active{align-items:flex-start}
                 .modal-content{width:100%;max-height:calc(100dvh - 20px);padding:16px}
@@ -458,6 +472,14 @@
                         <div class="detail-actions" style="margin-top:16px">
                             <button class="primary" id="deposit-detail-edit-btn" type="button">編集</button>
                         </div>
+                        <section class="deposit-pdf-section">
+                            <div class="deposit-pdf-heading">
+                                <h3>添付PDF</h3>
+                                <button type="button" class="pdf-upload-button" onclick="document.getElementById('deposit-pdf-input').click()">PDFを追加</button>
+                            </div>
+                            <input id="deposit-pdf-input" type="file" accept="application/pdf,.pdf" hidden onchange="uploadDepositPdf(this)">
+                            <div id="deposit-pdf-list" class="deposit-pdf-list"></div>
+                        </section>
                     </div>
                 </section>
 
@@ -2027,6 +2049,116 @@
                 let pendingDamageMarks = [];
                 let damageCheckMode = 'receive';
                 let activeDamageStamp = 'A';
+                const DEPOSIT_PDF_MAX_SIZE = 10 * 1024 * 1024;
+
+                function getDepositPdfKey(depositId){
+                    return `deposit-pdfs-${depositId}`;
+                }
+
+                function loadDepositPdfs(depositId){
+                    try{ return JSON.parse(localStorage.getItem(getDepositPdfKey(depositId)) || '[]'); }catch(e){ return []; }
+                }
+
+                function saveDepositPdfs(depositId, files){
+                    localStorage.setItem(getDepositPdfKey(depositId), JSON.stringify(Array.isArray(files) ? files : []));
+                }
+
+                function formatFileSize(size){
+                    const bytes = Number(size) || 0;
+                    if(bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+                    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                }
+
+                function renderDepositPdfs(depositId){
+                    const list = document.getElementById('deposit-pdf-list');
+                    if(!list) return;
+                    const files = loadDepositPdfs(depositId);
+                    if(files.length === 0){
+                        list.innerHTML = '<div class="empty-state">添付されたPDFはありません</div>';
+                        return;
+                    }
+
+                    list.innerHTML = files.map(file => `
+                        <div class="deposit-pdf-item">
+                            <div>
+                                <a class="deposit-pdf-name" href="${escapeHtml(file.url || '#')}" target="_blank" rel="noopener">${escapeHtml(file.name || 'PDF')}</a>
+                                <div class="deposit-pdf-meta">${escapeHtml(formatFileSize(file.size))} / ${escapeHtml((file.uploadedAt || '').replace('T', ' ').slice(0, 16))}</div>
+                            </div>
+                            <button type="button" class="deposit-pdf-delete" onclick="deleteDepositPdf('${escapeHtml(file.id || '')}')">削除</button>
+                        </div>
+                    `).join('');
+                }
+
+                async function refreshDepositPdfs(depositId){
+                    const files = await loadStoreFromCloud(getDepositPdfKey(depositId));
+                    if(files){
+                        saveDepositPdfs(depositId, files);
+                    }
+                    if(activeDepositDetailId !== depositId) return;
+                    renderDepositPdfs(depositId);
+                }
+
+                function readPdfAsBase64(file){
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+                        reader.onerror = () => reject(new Error('PDFの読み込みに失敗しました'));
+                        reader.readAsDataURL(file);
+                    });
+                }
+
+                async function sendPdfAction(payload){
+                    if(!isCloudSyncEnabled()) throw new Error('Google スプレッドシート連携が設定されていません');
+                    await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: {'Content-Type': 'text/plain;charset=utf-8'},
+                        body: JSON.stringify(payload)
+                    });
+                }
+
+                window.uploadDepositPdf = async function(input){
+                    const file = input.files && input.files[0];
+                    input.value = '';
+                    if(!file || !activeDepositDetailId) return;
+                    if(file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)){
+                        alert('PDFファイルを選択してください');
+                        return;
+                    }
+                    if(file.size > DEPOSIT_PDF_MAX_SIZE){
+                        alert('PDFは10MB以下にしてください');
+                        return;
+                    }
+
+                    try{
+                        const base64 = await readPdfAsBase64(file);
+                        await sendPdfAction({
+                            action: 'uploadPdf',
+                            depositId: activeDepositDetailId,
+                            fileName: file.name,
+                            mimeType: 'application/pdf',
+                            base64
+                        });
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        await refreshDepositPdfs(activeDepositDetailId);
+                        alert('PDFを追加しました');
+                    }catch(err){
+                        console.error('PDF upload failed:', err);
+                        alert('PDFを追加できませんでした。Google Apps Scriptを最新版に更新して再デプロイしてください。');
+                    }
+                };
+
+                window.deleteDepositPdf = async function(fileId){
+                    if(!activeDepositDetailId || !fileId || !confirm('このPDFを削除しますか？')) return;
+                    try{
+                        await sendPdfAction({action: 'deletePdf', depositId: activeDepositDetailId, fileId});
+                        saveDepositPdfs(activeDepositDetailId, loadDepositPdfs(activeDepositDetailId).filter(file => file.id !== fileId));
+                        renderDepositPdfs(activeDepositDetailId);
+                    }catch(err){
+                        console.error('PDF deletion failed:', err);
+                        alert('PDFを削除できませんでした。Google Apps Scriptの設定を確認してください。');
+                    }
+                };
 
                 function cloneDamageMarks(marks){
                     return Array.isArray(marks) ? marks
@@ -2347,6 +2479,8 @@
                     document.getElementById('detail-deposit-return-fuel').textContent = deposit.returnFuel || '-';
                     const editButton = document.getElementById('deposit-detail-edit-btn');
                     if(editButton) editButton.onclick = () => openDepositEdit(id);
+                    renderDepositPdfs(id);
+                    refreshDepositPdfs(id);
 
                     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
                     document.getElementById('deposit-detail').classList.add('active');
