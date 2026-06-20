@@ -2177,10 +2177,7 @@
 
                     list.innerHTML = files.map(file => `
                         <div class="deposit-pdf-item">
-                            <div>
-                                <a class="deposit-pdf-name" href="${escapeHtml(file.url || '#')}" target="_blank" rel="noopener">${escapeHtml(file.name || 'PDF')}</a>
-                                <div class="deposit-pdf-meta">${escapeHtml(formatFileSize(file.size))} / ${escapeHtml((file.uploadedAt || '').replace('T', ' ').slice(0, 16))}</div>
-                            </div>
+                            <a class="deposit-pdf-name" href="${escapeHtml(file.url || '#')}" target="_blank" rel="noopener">${escapeHtml(file.name || 'PDF')}</a>
                             <button type="button" class="deposit-pdf-delete" onclick="deleteDepositPdf('${escapeHtml(file.id || '')}')">削除</button>
                         </div>
                     `).join('');
@@ -2214,6 +2211,17 @@
                     });
                 }
 
+                async function waitForPdfUpload(storageKey, previousFileIds){
+                    for(let attempt = 0; attempt < 6; attempt++){
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        const files = await loadStoreFromCloud(storageKey);
+                        if(Array.isArray(files) && files.some(file => file && file.id && !previousFileIds.has(file.id))){
+                            return files;
+                        }
+                    }
+                    return null;
+                }
+
                 window.uploadDepositPdf = async function(input){
                     const file = input.files && input.files[0];
                     input.value = '';
@@ -2228,6 +2236,8 @@
                     }
 
                     try{
+                        const storageKey = getDepositPdfKey(activeDepositDetailId);
+                        const previousFiles = await loadStoreFromCloud(storageKey) || loadDepositPdfs(activeDepositDetailId);
                         const base64 = await readPdfAsBase64(file);
                         await sendPdfAction({
                             action: 'uploadPdf',
@@ -2236,8 +2246,10 @@
                             mimeType: 'application/pdf',
                             base64
                         });
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        await refreshDepositPdfs(activeDepositDetailId);
+                        const files = await waitForPdfUpload(storageKey, new Set(previousFiles.map(item => item && item.id).filter(Boolean)));
+                        if(!files) throw new Error('PDF metadata was not saved');
+                        saveDepositPdfs(activeDepositDetailId, files);
+                        renderDepositPdfs(activeDepositDetailId);
                         alert('PDFを追加しました');
                     }catch(err){
                         console.error('PDF upload failed:', err);
@@ -2280,10 +2292,7 @@
 
                     list.innerHTML = files.map(file => `
                         <div class="deposit-pdf-item">
-                            <div>
-                                <a class="deposit-pdf-name" href="${escapeHtml(file.url || '#')}" target="_blank" rel="noopener">${escapeHtml(file.name || 'PDF')}</a>
-                                <div class="deposit-pdf-meta">${escapeHtml(formatFileSize(file.size))} / ${escapeHtml((file.uploadedAt || '').replace('T', ' ').slice(0, 16))}</div>
-                            </div>
+                            <a class="deposit-pdf-name" href="${escapeHtml(file.url || '#')}" target="_blank" rel="noopener">${escapeHtml(file.name || 'PDF')}</a>
                             <button type="button" class="deposit-pdf-delete" onclick="deleteDaishaPdf('${escapeHtml(file.id || '')}')">削除</button>
                         </div>
                     `).join('');
@@ -2313,17 +2322,21 @@
                     }
 
                     try{
+                        const storageKey = getDaishaPdfKey(daishaId);
+                        const previousFiles = await loadStoreFromCloud(storageKey) || loadDaishaPdfs(daishaId);
                         const base64 = await readPdfAsBase64(file);
                         await sendPdfAction({
                             action: 'uploadPdf',
                             depositId: daishaId,
-                            storageKey: getDaishaPdfKey(daishaId),
+                            storageKey,
                             fileName: file.name,
                             mimeType: 'application/pdf',
                             base64
                         });
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        await refreshDaishaPdfs(daishaId);
+                        const files = await waitForPdfUpload(storageKey, new Set(previousFiles.map(item => item && item.id).filter(Boolean)));
+                        if(!files) throw new Error('PDF metadata was not saved');
+                        saveDaishaPdfs(daishaId, files);
+                        renderDaishaPdfs(daishaId);
                         alert('PDFを追加しました');
                     }catch(err){
                         console.error('Daisha PDF upload failed:', err);
