@@ -51,9 +51,7 @@
             .modal-footer{display:flex;gap:8px;justify-content:flex-end;flex:0 0 auto}
             .modal-footer button{padding:8px 16px;border-radius:6px;border:1px solid #d1d5db;background:transparent;cursor:pointer}
             .modal-footer button.primary{background:var(--accent);color:#fff;border:0}
-            .form-label-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
-            .form-label-row label{margin-bottom:0}
-            .damage-check-button{padding:5px 9px;border:1px solid #bfdbfe;border-radius:6px;background:#eff6ff;color:#075985;font-size:12px;font-weight:600;cursor:pointer}
+            .damage-check-button{display:inline-flex;margin-top:8px;padding:5px 9px;border:1px solid #bfdbfe;border-radius:6px;background:#eff6ff;color:#075985;font-size:12px;font-weight:600;cursor:pointer}
             .damage-check-button:hover{background:#dbeafe}
             .damage-modal-content{max-width:680px}
             .damage-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
@@ -65,7 +63,7 @@
             .damage-sheet img{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none}
             .damage-mark-layer{position:absolute;inset:0;cursor:crosshair}
             .damage-stamp{position:absolute;transform:translate(-50%,-50%);color:#dc2626;font-size:24px;font-weight:800;line-height:1;text-shadow:0 1px 1px #fff;pointer-events:none}
-            .damage-stamp.zigzag{font-size:22px;letter-spacing:-3px}
+            .damage-stamp.wave{font-size:18px;letter-spacing:-2px}
             .damage-legend{margin:0 0 12px;padding:10px 12px;border-radius:6px;background:#f8fafc;color:#4b5563;font-size:12px;line-height:1.7}
 
             .vehicle-detail-grid{
@@ -801,11 +799,9 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <div class="form-label-row">
-                            <label>作業内容</label>
-                            <button type="button" class="damage-check-button" onclick="openDamageCheck('receive')">キズ確認</button>
-                        </div>
+                        <label>作業内容</label>
                         <textarea id="deposit-work" placeholder="例：エンジンオイル交換、修理内容など"></textarea>
+                        <button type="button" class="damage-check-button" onclick="openDamageCheck('receive')">キズ確認</button>
                     </div>
                     <div class="form-group">
                         <label>ステータス</label>
@@ -894,11 +890,9 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <div class="form-label-row">
-                            <label>作業内容</label>
-                            <button type="button" class="damage-check-button" onclick="openDamageCheck('edit')">キズ確認</button>
-                        </div>
+                        <label>作業内容</label>
                         <textarea id="edit-deposit-work"></textarea>
+                        <button type="button" class="damage-check-button" onclick="openDamageCheck('edit')">キズ確認</button>
                     </div>
                     <div class="form-group">
                         <label>ステータス</label>
@@ -964,12 +958,12 @@
                         <button type="button" class="damage-tool active" data-damage-stamp="A" onclick="setDamageStamp('A')">A</button>
                         <button type="button" class="damage-tool" data-damage-stamp="U" onclick="setDamageStamp('U')">U</button>
                         <button type="button" class="damage-tool" data-damage-stamp="AU" onclick="setDamageStamp('AU')">AU</button>
-                        <button type="button" class="damage-tool" data-damage-stamp="zigzag" onclick="setDamageStamp('zigzag')">ギザギザ</button>
+                        <button type="button" class="damage-tool" data-damage-stamp="wave" onclick="setDamageStamp('wave')">波線</button>
                         <button type="button" class="damage-tool" onclick="undoDamageStamp()">戻す</button>
                         <button type="button" class="damage-tool damage-tool-clear" onclick="clearDamageStamps()">クリア</button>
                     </div>
                     <div class="damage-legend">
-                        A: 擦り傷　/　U: へこみ　/　AU: 擦り傷・へこみ　/　ギザギザ: 割れ<br>
+                        A: 擦り傷　/　U: へこみ　/　AU: 擦り傷・へこみ　/　波線: 割れ<br>
                         スタンプを選んでから、車両図の該当箇所をタップしてください。
                     </div>
                     <div class="damage-sheet-wrap">
@@ -2038,7 +2032,7 @@
                     return Array.isArray(marks) ? marks
                         .filter(mark => mark && ['A', 'U', 'AU', 'zigzag', 'wave'].includes(mark.type))
                         .map(mark => ({
-                            type: mark.type === 'wave' ? 'zigzag' : mark.type,
+                            type: mark.type === 'zigzag' ? 'wave' : mark.type,
                             x: Math.max(0, Math.min(100, Number(mark.x) || 0)),
                             y: Math.max(0, Math.min(100, Number(mark.y) || 0))
                         }))
@@ -2049,8 +2043,8 @@
                     const layer = document.getElementById('damage-mark-layer');
                     if(!layer) return;
                     layer.innerHTML = pendingDamageMarks.map(mark => {
-                        const label = mark.type === 'zigzag' ? '^^^^' : mark.type;
-                        const className = mark.type === 'zigzag' ? 'damage-stamp zigzag' : 'damage-stamp';
+                        const label = mark.type === 'wave' ? '~~~' : mark.type;
+                        const className = mark.type === 'wave' ? 'damage-stamp wave' : 'damage-stamp';
                         return `<span class="${className}" style="left:${mark.x}%;top:${mark.y}%">${label}</span>`;
                     }).join('');
                 }
@@ -2062,7 +2056,7 @@
                 }
 
                 window.setDamageStamp = function(type){
-                    activeDamageStamp = ['A', 'U', 'AU', 'zigzag'].includes(type) ? type : 'A';
+                    activeDamageStamp = ['A', 'U', 'AU', 'wave'].includes(type) ? type : 'A';
                     updateDamageStampTools();
                 };
 
