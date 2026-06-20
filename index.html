@@ -26,6 +26,8 @@
             .panel{background:var(--card);padding:16px;border-radius:8px;overflow-x:auto}
             .panel-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}
             .panel-title-row h2{margin:0}
+            .list-controls{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+            .list-reset-button{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;background:#fff;color:#374151;font-size:13px;cursor:pointer}
             .sort-select{min-width:170px;padding:8px;border:1px solid #d1d5db;border-radius:6px;background:#fff;font:inherit;font-size:13px}
             .view{display:none}
             .view.active{display:block}
@@ -160,6 +162,8 @@
                 .search input,.search button{width:100%}
                 .cards{flex-direction:column}
                 .panel-title-row{align-items:stretch;flex-direction:column}
+                .list-controls{align-items:stretch;flex-direction:column}
+                .list-reset-button{width:100%}
                 .sort-select{width:100%}
                 .vehicle-detail-grid{grid-template-columns:1fr}
                 .detail-actions button,.back-btn{width:100%}
@@ -285,13 +289,19 @@
                             <div style="color:var(--muted);font-size:13px">代車の一覧・登録・管理</div>
                         </div>
                         <div class="search">
-                            <input type="text" placeholder="車両ID / 車種 / ナンバー で検索">
+                            <input type="text" id="daisha-search" placeholder="車両ID / 車種 / ナンバーで検索">
+                            <button id="daisha-search-btn" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">検索</button>
                             <button data-modal-trigger="modal-daisha-register" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">新規代車登録</button>
                         </div>
                     </div>
 
                     <div class="panel">
-                        <h2 style="margin:0 0 12px">代車一覧</h2>
+                        <div class="panel-title-row">
+                            <h2>代車一覧</h2>
+                            <div class="list-controls">
+                                <button type="button" id="daisha-search-reset" class="list-reset-button" onclick="clearDaishaSearch()" hidden>一覧表示に戻る</button>
+                            </div>
+                        </div>
                         <table>
                             <thead>
                                 <tr>
@@ -421,11 +431,14 @@
                     <div class="panel">
                         <div class="panel-title-row">
                             <h2>預かり一覧</h2>
-                            <select id="deposit-sort" class="sort-select" onchange="changeDepositSort(this.value)" aria-label="預かり一覧の並び替え">
-                                <option value="date-desc">入庫日: 新しい順</option>
-                                <option value="date-asc">入庫日: 古い順</option>
-                                <option value="status">ステータス順</option>
-                            </select>
+                            <div class="list-controls">
+                                <button type="button" id="deposit-search-reset" class="list-reset-button" onclick="clearDepositSearch()" hidden>一覧表示に戻る</button>
+                                <select id="deposit-sort" class="sort-select" onchange="changeDepositSort(this.value)" aria-label="預かり一覧の並び替え">
+                                    <option value="date-desc">入庫日: 新しい順</option>
+                                    <option value="date-asc">入庫日: 古い順</option>
+                                    <option value="status">ステータス順</option>
+                                </select>
+                            </div>
                         </div>
                         <table>
                             <thead>
@@ -1277,6 +1290,14 @@
                     if(e.key === 'Enter') runDepositSearch();
                 });
 
+                document.getElementById('daisha-search-btn')?.addEventListener('click', ()=>{
+                    runDaishaSearch();
+                });
+
+                document.getElementById('daisha-search')?.addEventListener('keydown', (e)=>{
+                    if(e.key === 'Enter') runDaishaSearch();
+                });
+
                 // モーダル開く
                 document.querySelectorAll('[data-modal-trigger]').forEach(btn=>{
                     btn.addEventListener('click', ()=>{
@@ -1503,6 +1524,8 @@
                     return (document.getElementById('dashboard-search')?.value || '').trim().toLowerCase();
                 }
 
+                let daishaSearchQuery = '';
+
                 function daishaMatchesKeyword(daisha, keyword){
                     if(!keyword) return true;
                     const historyText = (daisha.history || [])
@@ -1522,6 +1545,18 @@
                     ].join(' ').toLowerCase();
                     return searchable.includes(keyword);
                 }
+
+                function runDaishaSearch(){
+                    daishaSearchQuery = (document.getElementById('daisha-search')?.value || '').trim().toLowerCase();
+                    renderDaishas();
+                }
+
+                window.clearDaishaSearch = function(){
+                    daishaSearchQuery = '';
+                    const input = document.getElementById('daisha-search');
+                    if(input) input.value = '';
+                    renderDaishas();
+                };
 
                 function renderDaishaSearchRows(items){
                     if(items.length === 0){
@@ -1649,14 +1684,19 @@
                     const lists = document.querySelectorAll('.daisha-list');
                     if(!lists || lists.length===0) return;
                     const daishas = loadDaishas();
+                    const resetButton = document.getElementById('daisha-search-reset');
+                    if(resetButton) resetButton.hidden = !daishaSearchQuery;
                     renderDaishaDashboardStats(daishas);
                     renderDepositDaishaOptions(daishas);
                     lists.forEach(tb=>{
                         const mode = tb.dataset.mode || 'overview';
-                        const displayDaishas = mode === 'overview' ? daishas.filter(isAvailableDaisha) : daishas;
+                        const displayDaishas = mode === 'overview'
+                            ? daishas.filter(isAvailableDaisha)
+                            : daishas.filter(d => daishaMatchesKeyword(d, daishaSearchQuery));
                         if(displayDaishas.length===0){
                             const colspan = mode === 'manage' ? 7 : 6;
-                            tb.innerHTML = `<tr><td colspan="${colspan}" style="color:var(--muted)">データがありません</td></tr>`;
+                            const message = mode === 'manage' && daishaSearchQuery ? '該当する代車がありません' : 'データがありません';
+                            tb.innerHTML = `<tr><td colspan="${colspan}" style="color:var(--muted)">${message}</td></tr>`;
                             return;
                         }
                         tb.innerHTML = displayDaishas.map(d=>{
@@ -2356,6 +2396,13 @@
                     renderDeposits();
                 }
 
+                window.clearDepositSearch = function(){
+                    depositSearchQuery = '';
+                    const input = document.getElementById('deposit-search');
+                    if(input) input.value = '';
+                    renderDeposits();
+                };
+
                 function getDepositDateValue(deposit){
                     const value = Date.parse(`${deposit.date || ''}T00:00:00`);
                     return Number.isNaN(value) ? 0 : value;
@@ -2486,12 +2533,14 @@
                     const historyTbody = document.getElementById('deposit-history-tbody');
                     const dashboardDepositCount = document.getElementById('dashboard-deposit-count');
                     const sortSelect = document.getElementById('deposit-sort');
+                    const resetButton = document.getElementById('deposit-search-reset');
 
                     const deposits = loadDeposits();
                     const allActiveDeposits = deposits.filter(d => !isDeliveredDeposit(d));
                     const activeDeposits = sortActiveDeposits(allActiveDeposits.filter(d => depositMatchesSearch(d, depositSearchQuery)));
                     const deliveredDeposits = deposits.filter(isDeliveredDeposit).filter(d => depositMatchesSearch(d, depositSearchQuery));
                     if(sortSelect) sortSelect.value = depositSort;
+                    if(resetButton) resetButton.hidden = !depositSearchQuery;
                     if(dashboardDepositCount) dashboardDepositCount.textContent = allActiveDeposits.length;
 
                     if(tbody && activeDeposits.length === 0){
