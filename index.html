@@ -24,6 +24,7 @@
             .card h3{margin:0;font-size:14px;color:var(--muted)}
             .card p{margin:8px 0 0;font-size:22px;font-weight:700}
             .panel{background:var(--card);padding:16px;border-radius:8px;overflow-x:auto}
+            .settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
             .panel-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}
             .panel-title-row h2{margin:0}
             .list-controls{display:flex;align-items:center;justify-content:flex-end;gap:8px}
@@ -161,6 +162,7 @@
                 .search{align-items:stretch;flex-direction:column;width:100%}
                 .search input,.search button{width:100%}
                 .cards{flex-direction:column}
+                .settings-grid{grid-template-columns:1fr}
                 .panel-title-row{align-items:stretch;flex-direction:column}
                 .list-controls{align-items:stretch;flex-direction:column}
                 .list-reset-button{width:100%}
@@ -219,7 +221,6 @@
                     <li data-view="deposit">預かり車両</li>
                     <li data-view="daisha">代車管理</li>
                     <li data-view="dealer-number">ディーラーナンバー</li>
-                    <li data-view="settings">設定</li>
                 </ul>
             </aside>
             <main class="main">
@@ -471,6 +472,47 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <section style="margin-top:20px">
+                        <div>
+                            <h2 style="margin:0 0 6px">設定</h2>
+                            <div style="color:var(--muted);font-size:13px">プルダウン選択肢の管理</div>
+                        </div>
+                        <div class="settings-grid">
+                            <div class="panel">
+                                <h3 style="margin:0 0 12px">回送目的</h3>
+                                <div style="margin-bottom:12px">
+                                    <input type="text" id="input-purpose" placeholder="例：特定整備" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                    <button onclick="addOption('purpose')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
+                                </div>
+                                <ul id="list-purpose" style="list-style:none;padding:0;margin:0"></ul>
+                            </div>
+                            <div class="panel">
+                                <h3 style="margin:0 0 12px">発地</h3>
+                                <div style="margin-bottom:12px">
+                                    <input type="text" id="input-from" placeholder="例：MuseuM" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                    <button onclick="addOption('from')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
+                                </div>
+                                <ul id="list-from" style="list-style:none;padding:0;margin:0"></ul>
+                            </div>
+                            <div class="panel">
+                                <h3 style="margin:0 0 12px">着地</h3>
+                                <div style="margin-bottom:12px">
+                                    <input type="text" id="input-to" placeholder="例：下諏訪" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                    <button onclick="addOption('to')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
+                                </div>
+                                <ul id="list-to" style="list-style:none;padding:0;margin:0"></ul>
+                            </div>
+                            <div class="panel">
+                                <h3 style="margin:0 0 12px">使用者</h3>
+                                <div style="margin-bottom:12px">
+                                    <input type="text" id="input-user" placeholder="例：山田太郎" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                    <button onclick="addOption('user')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
+                                </div>
+                                <ul id="list-user" style="list-style:none;padding:0;margin:0"></ul>
+                            </div>
+                        </div>
+                    </section>
                 </section>
 
                 <!-- 設定ビュー -->
@@ -509,60 +551,6 @@
                     </div>
                 </section>
 
-                <section id="settings" class="view">
-                    <div class="header">
-                        <div>
-                            <h1 style="margin:0 0 6px">設定</h1>
-                            <div style="color:var(--muted);font-size:13px">プルダウン選択肢の管理</div>
-                        </div>
-                    </div>
-
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-                        <!-- 回送目的 -->
-                        <div class="panel">
-                            <h3 style="margin:0 0 12px">回送目的</h3>
-                            <div style="margin-bottom:12px">
-                                <input type="text" id="input-purpose" placeholder="例：特定整備" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
-                                <button onclick="addOption('purpose')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
-                            </div>
-                            <ul id="list-purpose" style="list-style:none;padding:0;margin:0">
-                            </ul>
-                        </div>
-
-                        <!-- 発地 -->
-                        <div class="panel">
-                            <h3 style="margin:0 0 12px">発地</h3>
-                            <div style="margin-bottom:12px">
-                                <input type="text" id="input-from" placeholder="例：MuseuM" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
-                                <button onclick="addOption('from')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
-                            </div>
-                            <ul id="list-from" style="list-style:none;padding:0;margin:0">
-                            </ul>
-                        </div>
-
-                        <!-- 着地 -->
-                        <div class="panel">
-                            <h3 style="margin:0 0 12px">着地</h3>
-                            <div style="margin-bottom:12px">
-                                <input type="text" id="input-to" placeholder="例：下諏訪" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
-                                <button onclick="addOption('to')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
-                            </div>
-                            <ul id="list-to" style="list-style:none;padding:0;margin:0">
-                            </ul>
-                        </div>
-
-                        <!-- 使用者 -->
-                        <div class="panel">
-                            <h3 style="margin:0 0 12px">使用者</h3>
-                            <div style="margin-bottom:12px">
-                                <input type="text" id="input-user" placeholder="例：山田太郎" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
-                                <button onclick="addOption('user')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
-                            </div>
-                            <ul id="list-user" style="list-style:none;padding:0;margin:0">
-                            </ul>
-                        </div>
-                    </div>
-                </section>
             </main>
         </div>
         </div>
