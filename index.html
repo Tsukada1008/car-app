@@ -1526,8 +1526,19 @@
 
                 let daishaSearchQuery = '';
 
-                function daishaMatchesKeyword(daisha, keyword){
+                function normalizeSearchNumber(value){
+                    return String(value || '').trim().replace(/[０-９]/g, char => String.fromCharCode(char.charCodeAt(0) - 0xFEE0));
+                }
+
+                function isNumberOnlySearch(keyword){
+                    return /^[0-9]+$/.test(normalizeSearchNumber(keyword));
+                }
+
+                function daishaMatchesKeyword(daisha, keyword, exactNumberOnly = false){
                     if(!keyword) return true;
+                    if(exactNumberOnly && isNumberOnlySearch(keyword)){
+                        return normalizeSearchNumber(daisha.number) === normalizeSearchNumber(keyword);
+                    }
                     const historyText = (daisha.history || [])
                         .map(h => [h.loanTo, h.loanDate, h.returnDate, h.loanNote, h.returnNote].join(' '))
                         .join(' ');
@@ -1692,7 +1703,7 @@
                         const mode = tb.dataset.mode || 'overview';
                         const displayDaishas = mode === 'overview'
                             ? daishas.filter(isAvailableDaisha)
-                            : daishas.filter(d => daishaMatchesKeyword(d, daishaSearchQuery));
+                            : daishas.filter(d => daishaMatchesKeyword(d, daishaSearchQuery, true));
                         if(displayDaishas.length===0){
                             const colspan = mode === 'manage' ? 7 : 6;
                             const message = mode === 'manage' && daishaSearchQuery ? '該当する代車がありません' : 'データがありません';
@@ -2378,6 +2389,9 @@
 
                 function depositMatchesSearch(deposit, keyword){
                     if(!keyword) return true;
+                    if(isNumberOnlySearch(keyword)){
+                        return normalizeSearchNumber(deposit.number) === normalizeSearchNumber(keyword);
+                    }
                     const searchable = [
                         deposit.customer,
                         deposit.car,
