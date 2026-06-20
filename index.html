@@ -389,7 +389,7 @@
                             <div style="color:var(--muted);font-size:13px">ディーラーナンバーの貸出・返却管理</div>
                         </div>
                         <div class="search">
-                            <input type="text" placeholder="ナンバー / 貸出先 で検索">
+                            <button type="button" id="dealer-settings-button" onclick="toggleDealerSettings()" style="padding:8px 12px;border-radius:6px;border:1px solid #d1d5db;background:#fff;color:#374151">設定</button>
                             <button data-modal-trigger="modal-dealer-register" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">貸出申請</button>
                         </div>
                     </div>
@@ -413,6 +413,47 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <section id="dealer-settings-panel" style="margin-top:20px" hidden>
+                        <div>
+                            <h2 style="margin:0 0 6px">設定</h2>
+                            <div style="color:var(--muted);font-size:13px">プルダウン選択肢の管理</div>
+                        </div>
+                        <div class="settings-grid">
+                            <div class="panel">
+                                <h3 style="margin:0 0 12px">回送目的</h3>
+                                <div style="margin-bottom:12px">
+                                    <input type="text" id="input-purpose" placeholder="例：特定整備" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                    <button onclick="addOption('purpose')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
+                                </div>
+                                <ul id="list-purpose" style="list-style:none;padding:0;margin:0"></ul>
+                            </div>
+                            <div class="panel">
+                                <h3 style="margin:0 0 12px">発地</h3>
+                                <div style="margin-bottom:12px">
+                                    <input type="text" id="input-from" placeholder="例：MuseuM" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                    <button onclick="addOption('from')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
+                                </div>
+                                <ul id="list-from" style="list-style:none;padding:0;margin:0"></ul>
+                            </div>
+                            <div class="panel">
+                                <h3 style="margin:0 0 12px">着地</h3>
+                                <div style="margin-bottom:12px">
+                                    <input type="text" id="input-to" placeholder="例：下諏訪" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                    <button onclick="addOption('to')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
+                                </div>
+                                <ul id="list-to" style="list-style:none;padding:0;margin:0"></ul>
+                            </div>
+                            <div class="panel">
+                                <h3 style="margin:0 0 12px">使用者</h3>
+                                <div style="margin-bottom:12px">
+                                    <input type="text" id="input-user" placeholder="例：山田太郎" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
+                                    <button onclick="addOption('user')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
+                                </div>
+                                <ul id="list-user" style="list-style:none;padding:0;margin:0"></ul>
+                            </div>
+                        </div>
+                    </section>
                 </section>
 
                 <!-- 預かり車両ビュー -->
@@ -473,46 +514,6 @@
                         </table>
                     </div>
 
-                    <section style="margin-top:20px">
-                        <div>
-                            <h2 style="margin:0 0 6px">設定</h2>
-                            <div style="color:var(--muted);font-size:13px">プルダウン選択肢の管理</div>
-                        </div>
-                        <div class="settings-grid">
-                            <div class="panel">
-                                <h3 style="margin:0 0 12px">回送目的</h3>
-                                <div style="margin-bottom:12px">
-                                    <input type="text" id="input-purpose" placeholder="例：特定整備" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
-                                    <button onclick="addOption('purpose')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
-                                </div>
-                                <ul id="list-purpose" style="list-style:none;padding:0;margin:0"></ul>
-                            </div>
-                            <div class="panel">
-                                <h3 style="margin:0 0 12px">発地</h3>
-                                <div style="margin-bottom:12px">
-                                    <input type="text" id="input-from" placeholder="例：MuseuM" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
-                                    <button onclick="addOption('from')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
-                                </div>
-                                <ul id="list-from" style="list-style:none;padding:0;margin:0"></ul>
-                            </div>
-                            <div class="panel">
-                                <h3 style="margin:0 0 12px">着地</h3>
-                                <div style="margin-bottom:12px">
-                                    <input type="text" id="input-to" placeholder="例：下諏訪" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
-                                    <button onclick="addOption('to')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
-                                </div>
-                                <ul id="list-to" style="list-style:none;padding:0;margin:0"></ul>
-                            </div>
-                            <div class="panel">
-                                <h3 style="margin:0 0 12px">使用者</h3>
-                                <div style="margin-bottom:12px">
-                                    <input type="text" id="input-user" placeholder="例：山田太郎" style="width:100%;padding:8px;border-radius:6px;border:1px solid #d1d5db;margin-bottom:6px">
-                                    <button onclick="addOption('user')" style="width:100%;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff">追加</button>
-                                </div>
-                                <ul id="list-user" style="list-style:none;padding:0;margin:0"></ul>
-                            </div>
-                        </div>
-                    </section>
                 </section>
 
                 <!-- 設定ビュー -->
@@ -1253,6 +1254,16 @@
                     document.querySelectorAll('.nav li').forEach(li=>li.classList.toggle('active', li.dataset.view===id));
                 }
                 window.showView = showView;
+
+                window.toggleDealerSettings = function(){
+                    const panel = document.getElementById('dealer-settings-panel');
+                    const button = document.getElementById('dealer-settings-button');
+                    if(!panel) return;
+                    const opening = panel.hidden;
+                    panel.hidden = !opening;
+                    if(button) button.textContent = opening ? '設定を閉じる' : '設定';
+                    if(opening) panel.scrollIntoView({behavior: 'smooth', block: 'start'});
+                };
 
                 // nav クリック
                 document.querySelectorAll('.nav li[data-view]').forEach(li=>{
