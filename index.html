@@ -24,6 +24,9 @@
             .card h3{margin:0;font-size:14px;color:var(--muted)}
             .card p{margin:8px 0 0;font-size:22px;font-weight:700}
             .panel{background:var(--card);padding:16px;border-radius:8px;overflow-x:auto}
+            .panel-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}
+            .panel-title-row h2{margin:0}
+            .sort-select{min-width:170px;padding:8px;border:1px solid #d1d5db;border-radius:6px;background:#fff;font:inherit;font-size:13px}
             .view{display:none}
             .view.active{display:block}
             table{width:100%;border-collapse:collapse}
@@ -156,6 +159,8 @@
                 .search{align-items:stretch;flex-direction:column;width:100%}
                 .search input,.search button{width:100%}
                 .cards{flex-direction:column}
+                .panel-title-row{align-items:stretch;flex-direction:column}
+                .sort-select{width:100%}
                 .vehicle-detail-grid{grid-template-columns:1fr}
                 .detail-actions button,.back-btn{width:100%}
                 .deposit-pdf-heading{align-items:stretch;flex-direction:column}
@@ -413,7 +418,14 @@
                     </div>
 
                     <div class="panel">
-                        <h2 style="margin:0 0 12px">預かり一覧</h2>
+                        <div class="panel-title-row">
+                            <h2>預かり一覧</h2>
+                            <select id="deposit-sort" class="sort-select" onchange="changeDepositSort(this.value)" aria-label="預かり一覧の並び替え">
+                                <option value="date-desc">入庫日: 新しい順</option>
+                                <option value="date-asc">入庫日: 古い順</option>
+                                <option value="status">ステータス順</option>
+                            </select>
+                        </div>
                         <table>
                             <thead>
                                 <tr>
@@ -2311,6 +2323,32 @@
                 }
 
                 const DEPOSIT_STATUS_OPTIONS = ['見積待ち', '部品待ち', '作業待ち', '確認/車検待ち', '納車待ち', '納車済み'];
+                const DEPOSIT_STATUS_SORT_ORDER = ['見積待ち', '部品待ち', '作業待ち', '確認/車検待ち', '納車待ち'];
+                let depositSort = localStorage.getItem('depositSort') || 'date-desc';
+
+                function getDepositDateValue(deposit){
+                    const value = Date.parse(`${deposit.date || ''}T00:00:00`);
+                    return Number.isNaN(value) ? 0 : value;
+                }
+
+                function sortActiveDeposits(deposits){
+                    return [...deposits].sort((a, b) => {
+                        const dateDiff = getDepositDateValue(b) - getDepositDateValue(a);
+                        if(depositSort === 'date-asc') return -dateDiff || String(a.id || '').localeCompare(String(b.id || ''));
+                        if(depositSort === 'status'){
+                            const aStatus = DEPOSIT_STATUS_SORT_ORDER.indexOf(normalizeDepositStatus(a.status));
+                            const bStatus = DEPOSIT_STATUS_SORT_ORDER.indexOf(normalizeDepositStatus(b.status));
+                            return (aStatus < 0 ? 999 : aStatus) - (bStatus < 0 ? 999 : bStatus) || dateDiff;
+                        }
+                        return dateDiff || String(b.id || '').localeCompare(String(a.id || ''));
+                    });
+                }
+
+                window.changeDepositSort = function(value){
+                    depositSort = ['date-desc', 'date-asc', 'status'].includes(value) ? value : 'date-desc';
+                    localStorage.setItem('depositSort', depositSort);
+                    renderDeposits();
+                };
 
                 function isDeliveredDeposit(deposit){
                     return normalizeDepositStatus(deposit.status) === '納車済み';
@@ -2417,10 +2455,12 @@
                     const tbody = document.getElementById('deposit-tbody');
                     const historyTbody = document.getElementById('deposit-history-tbody');
                     const dashboardDepositCount = document.getElementById('dashboard-deposit-count');
+                    const sortSelect = document.getElementById('deposit-sort');
 
                     const deposits = loadDeposits();
-                    const activeDeposits = deposits.filter(d => !isDeliveredDeposit(d));
+                    const activeDeposits = sortActiveDeposits(deposits.filter(d => !isDeliveredDeposit(d)));
                     const deliveredDeposits = deposits.filter(isDeliveredDeposit);
+                    if(sortSelect) sortSelect.value = depositSort;
                     if(dashboardDepositCount) dashboardDepositCount.textContent = activeDeposits.length;
 
                     if(tbody && activeDeposits.length === 0){
