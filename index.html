@@ -2631,7 +2631,13 @@
                     document.getElementById('detail-deposit-number').textContent = deposit.number || '-';
                     document.getElementById('detail-deposit-mileage').textContent = deposit.mileage ? `${deposit.mileage} km` : '-';
                     document.getElementById('detail-deposit-date').textContent = deposit.date || '-';
-                    document.getElementById('detail-deposit-daisha').textContent = deposit.daishaId ? getDaishaLabel(deposit.daishaId) : '-';
+                    const depositDaishaEl = document.getElementById('detail-deposit-daisha');
+                    const linkedDaisha = deposit.daishaId ? loadDaishas().find(d => d.id === deposit.daishaId) : null;
+                    if(depositDaishaEl){
+                        depositDaishaEl.innerHTML = linkedDaisha
+                            ? `<button type="button" class="clickable-car" onclick="showDaishaDetail('${escapeHtml(linkedDaisha.id)}')">${escapeHtml(getDaishaLabel(linkedDaisha.id))}</button>`
+                            : escapeHtml(deposit.daishaId ? getDaishaLabel(deposit.daishaId) : '-');
+                    }
                     document.getElementById('detail-deposit-fuel').textContent = deposit.fuel || '-';
                     document.getElementById('detail-deposit-payment').textContent = formatPayment(deposit.payment) || '-';
                     document.getElementById('detail-deposit-category').textContent = formatPayment(deposit.category) || '-';
