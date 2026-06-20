@@ -412,7 +412,8 @@
                             <div style="color:var(--muted);font-size:13px">入庫・作業・引取の管理</div>
                         </div>
                         <div class="search">
-                            <input type="text" placeholder="顧客名 / 車両 で検索">
+                            <input type="text" id="deposit-search" placeholder="顧客名 / 車両 / ナンバーで検索">
+                            <button id="deposit-search-btn" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">検索</button>
                             <button data-modal-trigger="modal-deposit-receive" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">受入登録</button>
                         </div>
                     </div>
@@ -1266,6 +1267,14 @@
 
                 document.getElementById('dashboard-search')?.addEventListener('keydown', (e)=>{
                     if(e.key === 'Enter') runDashboardSearch();
+                });
+
+                document.getElementById('deposit-search-btn')?.addEventListener('click', ()=>{
+                    runDepositSearch();
+                });
+
+                document.getElementById('deposit-search')?.addEventListener('keydown', (e)=>{
+                    if(e.key === 'Enter') runDepositSearch();
                 });
 
                 // モーダル開く
@@ -2325,6 +2334,27 @@
                 const DEPOSIT_STATUS_OPTIONS = ['見積待ち', '部品待ち', '作業待ち', '確認/車検待ち', '納車待ち', '納車済み'];
                 const DEPOSIT_STATUS_SORT_ORDER = ['見積待ち', '部品待ち', '作業待ち', '確認/車検待ち', '納車待ち'];
                 let depositSort = localStorage.getItem('depositSort') || 'date-desc';
+                let depositSearchQuery = '';
+
+                function depositMatchesSearch(deposit, keyword){
+                    if(!keyword) return true;
+                    const searchable = [
+                        deposit.customer,
+                        deposit.car,
+                        deposit.number,
+                        deposit.tel,
+                        deposit.status,
+                        deposit.date,
+                        deposit.work,
+                        deposit.note
+                    ].filter(Boolean).join(' ').toLowerCase();
+                    return searchable.includes(keyword);
+                }
+
+                function runDepositSearch(){
+                    depositSearchQuery = (document.getElementById('deposit-search')?.value || '').trim().toLowerCase();
+                    renderDeposits();
+                }
 
                 function getDepositDateValue(deposit){
                     const value = Date.parse(`${deposit.date || ''}T00:00:00`);
@@ -2458,13 +2488,14 @@
                     const sortSelect = document.getElementById('deposit-sort');
 
                     const deposits = loadDeposits();
-                    const activeDeposits = sortActiveDeposits(deposits.filter(d => !isDeliveredDeposit(d)));
-                    const deliveredDeposits = deposits.filter(isDeliveredDeposit);
+                    const allActiveDeposits = deposits.filter(d => !isDeliveredDeposit(d));
+                    const activeDeposits = sortActiveDeposits(allActiveDeposits.filter(d => depositMatchesSearch(d, depositSearchQuery)));
+                    const deliveredDeposits = deposits.filter(isDeliveredDeposit).filter(d => depositMatchesSearch(d, depositSearchQuery));
                     if(sortSelect) sortSelect.value = depositSort;
-                    if(dashboardDepositCount) dashboardDepositCount.textContent = activeDeposits.length;
+                    if(dashboardDepositCount) dashboardDepositCount.textContent = allActiveDeposits.length;
 
                     if(tbody && activeDeposits.length === 0){
-                        tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">データがありません</td></tr>';
+                        tbody.innerHTML = `<tr><td colspan="5" style="color:var(--muted)">${depositSearchQuery ? '該当する車両がありません' : 'データがありません'}</td></tr>`;
                     }else if(tbody){
                         tbody.innerHTML = activeDeposits.map(d=>`
                             <tr>
@@ -2481,7 +2512,7 @@
                     }
 
                     if(historyTbody && deliveredDeposits.length === 0){
-                        historyTbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">納車済み履歴はありません</td></tr>';
+                        historyTbody.innerHTML = `<tr><td colspan="6" style="color:var(--muted)">${depositSearchQuery ? '該当する納車済み履歴がありません' : '納車済み履歴はありません'}</td></tr>`;
                     }else if(historyTbody){
                         historyTbody.innerHTML = deliveredDeposits.map(d=>`
                             <tr>
