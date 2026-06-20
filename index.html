@@ -289,7 +289,7 @@
                             <div style="color:var(--muted);font-size:13px">代車の一覧・登録・管理</div>
                         </div>
                         <div class="search">
-                            <input type="text" id="daisha-search" placeholder="車両ID / 車種 / ナンバーで検索">
+                            <input type="text" id="daisha-search" placeholder="車両ID / 車種 / ナンバー下4桁で検索">
                             <button id="daisha-search-btn" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">検索</button>
                             <button data-modal-trigger="modal-daisha-register" style="padding:8px 12px;border-radius:6px;border:0;background:var(--accent);color:#fff">新規代車登録</button>
                         </div>
@@ -1534,9 +1534,16 @@
                     return /^[0-9]+$/.test(normalizeSearchNumber(keyword));
                 }
 
+                function getNumberLastFour(value){
+                    return normalizeSearchNumber(value).replace(/[^0-9]/g, '').slice(-4);
+                }
+
                 function daishaMatchesKeyword(daisha, keyword, exactNumberOnly = false){
                     if(!keyword) return true;
                     if(exactNumberOnly && isNumberOnlySearch(keyword)){
+                        if(normalizeSearchNumber(keyword).length === 4){
+                            return getNumberLastFour(daisha.number) === normalizeSearchNumber(keyword);
+                        }
                         return normalizeSearchNumber(daisha.number) === normalizeSearchNumber(keyword);
                     }
                     const historyText = (daisha.history || [])
