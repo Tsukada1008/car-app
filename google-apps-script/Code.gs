@@ -60,7 +60,7 @@ function uploadPdf_(body) {
   const bytes = Utilities.base64Decode(base64);
   const blob = Utilities.newBlob(bytes, mimeType, fileName);
   const file = getPdfFolder_().createFile(blob);
-  const key = getPdfKey_(depositId);
+  const key = getPdfKey_(depositId, body.storageKey);
   const files = loadValue_(key);
   const metadata = {
     id: file.getId(),
@@ -85,14 +85,18 @@ function deletePdf_(body) {
     // The metadata must still be removable if the file was already deleted.
   }
 
-  const key = getPdfKey_(depositId);
+  const key = getPdfKey_(depositId, body.storageKey);
   const files = loadValue_(key).filter(function(file) {
     return file && file.id !== fileId;
   });
   saveValue_(key, files);
 }
 
-function getPdfKey_(depositId) {
+function getPdfKey_(depositId, storageKey) {
+  const suppliedKey = String(storageKey || '');
+  if (/^(deposit|daisha)-pdfs-[A-Za-z0-9-]+$/.test(suppliedKey)) {
+    return suppliedKey;
+  }
   return 'deposit-pdfs-' + depositId;
 }
 

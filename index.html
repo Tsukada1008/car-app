@@ -383,6 +383,15 @@
                         </div>
                     </div>
 
+                    <section class="deposit-pdf-section">
+                        <div class="deposit-pdf-heading">
+                            <h3>添付PDF</h3>
+                            <button type="button" class="pdf-upload-button" onclick="document.getElementById('daisha-pdf-input').click()">PDFを追加</button>
+                        </div>
+                        <input id="daisha-pdf-input" type="file" accept="application/pdf,.pdf" hidden onchange="uploadDaishaPdf(this)">
+                        <div id="daisha-pdf-list" class="deposit-pdf-list"></div>
+                    </section>
+
                     <div class="panel" style="margin-top:16px">
                         <h2 style="margin:0 0 12px">貸出履歴</h2>
                         <div id="detail-daisha-history"></div>
@@ -1933,6 +1942,8 @@
                     }
 
                     renderDaishaHistory(daisha);
+                    renderDaishaPdfs(id);
+                    refreshDaishaPdfs(id);
 
                     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
                     document.getElementById('daisha-detail').classList.add('active');
@@ -2242,6 +2253,93 @@
                         renderDepositPdfs(activeDepositDetailId);
                     }catch(err){
                         console.error('PDF deletion failed:', err);
+                        alert('PDFを削除できませんでした。Google Apps Scriptの設定を確認してください。');
+                    }
+                };
+
+                function getDaishaPdfKey(daishaId){
+                    return `daisha-pdfs-${daishaId}`;
+                }
+
+                function loadDaishaPdfs(daishaId){
+                    try{ return JSON.parse(localStorage.getItem(getDaishaPdfKey(daishaId)) || '[]'); }catch(e){ return []; }
+                }
+
+                function saveDaishaPdfs(daishaId, files){
+                    localStorage.setItem(getDaishaPdfKey(daishaId), JSON.stringify(Array.isArray(files) ? files : []));
+                }
+
+                function renderDaishaPdfs(daishaId){
+                    const list = document.getElementById('daisha-pdf-list');
+                    if(!list) return;
+                    const files = loadDaishaPdfs(daishaId);
+                    if(files.length === 0){
+                        list.innerHTML = '<div class="empty-state">添付されたPDFはありません</div>';
+                        return;
+                    }
+
+                    list.innerHTML = files.map(file => `
+                        <div class="deposit-pdf-item">
+                            <div>
+                                <a class="deposit-pdf-name" href="${escapeHtml(file.url || '#')}" target="_blank" rel="noopener">${escapeHtml(file.name || 'PDF')}</a>
+                                <div class="deposit-pdf-meta">${escapeHtml(formatFileSize(file.size))} / ${escapeHtml((file.uploadedAt || '').replace('T', ' ').slice(0, 16))}</div>
+                            </div>
+                            <button type="button" class="deposit-pdf-delete" onclick="deleteDaishaPdf('${escapeHtml(file.id || '')}')">削除</button>
+                        </div>
+                    `).join('');
+                }
+
+                async function refreshDaishaPdfs(daishaId){
+                    const files = await loadStoreFromCloud(getDaishaPdfKey(daishaId));
+                    if(files){
+                        saveDaishaPdfs(daishaId, files);
+                    }
+                    if(window._currentDaishaDetailId !== daishaId) return;
+                    renderDaishaPdfs(daishaId);
+                }
+
+                window.uploadDaishaPdf = async function(input){
+                    const file = input.files && input.files[0];
+                    input.value = '';
+                    const daishaId = window._currentDaishaDetailId;
+                    if(!file || !daishaId) return;
+                    if(file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)){
+                        alert('PDFファイルを選択してください');
+                        return;
+                    }
+                    if(file.size > DEPOSIT_PDF_MAX_SIZE){
+                        alert('PDFは10MB以下にしてください');
+                        return;
+                    }
+
+                    try{
+                        const base64 = await readPdfAsBase64(file);
+                        await sendPdfAction({
+                            action: 'uploadPdf',
+                            depositId: daishaId,
+                            storageKey: getDaishaPdfKey(daishaId),
+                            fileName: file.name,
+                            mimeType: 'application/pdf',
+                            base64
+                        });
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        await refreshDaishaPdfs(daishaId);
+                        alert('PDFを追加しました');
+                    }catch(err){
+                        console.error('Daisha PDF upload failed:', err);
+                        alert('PDFを追加できませんでした。Google Apps Scriptを最新版に更新して再デプロイしてください。');
+                    }
+                };
+
+                window.deleteDaishaPdf = async function(fileId){
+                    const daishaId = window._currentDaishaDetailId;
+                    if(!daishaId || !fileId || !confirm('このPDFを削除しますか？')) return;
+                    try{
+                        await sendPdfAction({action: 'deletePdf', depositId: daishaId, storageKey: getDaishaPdfKey(daishaId), fileId});
+                        saveDaishaPdfs(daishaId, loadDaishaPdfs(daishaId).filter(file => file.id !== fileId));
+                        renderDaishaPdfs(daishaId);
+                    }catch(err){
+                        console.error('Daisha PDF deletion failed:', err);
                         alert('PDFを削除できませんでした。Google Apps Scriptの設定を確認してください。');
                     }
                 };
