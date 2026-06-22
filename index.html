@@ -273,6 +273,23 @@
                         </div>
                     </div>
 
+                    <section class="panel" style="margin-bottom:18px">
+                        <h2 style="margin:0 0 12px">貸出予約</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>代車</th>
+                                    <th>ナンバー</th>
+                                    <th>予約先</th>
+                                    <th>貸出予定</th>
+                                    <th>返却予定日</th>
+                                    <th>備考</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboard-reservation-tbody"></tbody>
+                        </table>
+                    </section>
+
                     <section class="panel">
                         <h2 style="margin:0 0 12px">貸出可能代車</h2>
                         <table>
@@ -752,6 +769,14 @@
                     <div class="form-group">
                         <label>貸出予定時刻</label>
                         <input type="time" id="daisha-reservation-time">
+                    </div>
+                    <div class="form-group">
+                        <label>返却予定日</label>
+                        <input type="date" id="daisha-reservation-return-date">
+                    </div>
+                    <div class="form-group">
+                        <label>備考</label>
+                        <textarea id="daisha-reservation-note" placeholder="予約に関する備考を入力"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1834,6 +1859,31 @@
                     if(totalEl) totalEl.textContent = daishas.length;
                 }
 
+                function renderDashboardReservations(daishas){
+                    const tbody = document.getElementById('dashboard-reservation-tbody');
+                    if(!tbody) return;
+                    const reservations = daishas.flatMap(daisha => (
+                        Array.isArray(daisha.reservations) ? daisha.reservations : []
+                    ).map(reservation => ({daisha, reservation})))
+                        .sort((a, b) => `${a.reservation.loanDate || ''} ${a.reservation.loanTime || ''}`.localeCompare(`${b.reservation.loanDate || ''} ${b.reservation.loanTime || ''}`));
+
+                    if(reservations.length === 0){
+                        tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">貸出予約はありません</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = reservations.map(({daisha, reservation}) => `
+                        <tr>
+                            <td><button type="button" class="clickable-car" onclick="showDaishaDetail('${escapeHtml(daisha.id || '')}')">${escapeHtml(daisha.make || '-')}</button></td>
+                            <td>${escapeHtml(daisha.number || '-')}</td>
+                            <td>${escapeHtml(reservation.loanTo || '-')}</td>
+                            <td>${escapeHtml([reservation.loanDate, reservation.loanTime].filter(Boolean).join(' ') || '-')}</td>
+                            <td>${escapeHtml(reservation.returnDate || '-')}</td>
+                            <td>${escapeHtml(reservation.note || '-')}</td>
+                        </tr>
+                    `).join('');
+                }
+
                 function renderDaishas(){
                     const lists = document.querySelectorAll('.daisha-list');
                     if(!lists || lists.length===0) return;
@@ -1843,6 +1893,7 @@
                     if(resetButton) resetButton.hidden = !daishaSearchQuery;
                     if(sortSelect) sortSelect.value = daishaSort;
                     renderDaishaDashboardStats(daishas);
+                    renderDashboardReservations(daishas);
                     renderDepositDaishaOptions(daishas);
                     lists.forEach(tb=>{
                         const mode = tb.dataset.mode || 'overview';
@@ -1949,6 +2000,8 @@
                     document.getElementById('daisha-reservation-to').value = '';
                     document.getElementById('daisha-reservation-date').value = '';
                     document.getElementById('daisha-reservation-time').value = '';
+                    document.getElementById('daisha-reservation-return-date').value = '';
+                    document.getElementById('daisha-reservation-note').value = '';
                     document.getElementById('modal-daisha-reservation').classList.add('active');
                 };
 
@@ -1960,6 +2013,8 @@
                     const loanTo = document.getElementById('daisha-reservation-to')?.value.trim();
                     const loanDate = document.getElementById('daisha-reservation-date')?.value || '';
                     const loanTime = document.getElementById('daisha-reservation-time')?.value || '';
+                    const returnDate = document.getElementById('daisha-reservation-return-date')?.value || '';
+                    const note = document.getElementById('daisha-reservation-note')?.value.trim() || '';
                     if(!loanTo){
                         alert('予約先を入力してください');
                         document.getElementById('daisha-reservation-to')?.focus();
@@ -1977,6 +2032,8 @@
                         loanTo,
                         loanDate,
                         loanTime,
+                        returnDate,
+                        note,
                         createdAt: new Date().toISOString()
                     });
                     saveDaishas(daishas);
@@ -2013,6 +2070,7 @@
                             <div>
                                 <div class="reservation-title">${escapeHtml(reservation.loanTo || '-')}</div>
                                 <div class="reservation-meta">貸出予定: ${escapeHtml(reservation.loanDate || '-')} ${escapeHtml(reservation.loanTime || '')}</div>
+                                <div class="reservation-meta">返却予定: ${escapeHtml(reservation.returnDate || '-')} / 備考: ${escapeHtml(reservation.note || '-')}</div>
                             </div>
                             <button type="button" class="reservation-delete" onclick="deleteDaishaReservation('${escapeHtml(reservation.id || '')}')">取消</button>
                         </div>
