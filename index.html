@@ -140,6 +140,12 @@
             .deposit-pdf-name{color:var(--accent);font-weight:600;text-decoration:none;overflow-wrap:anywhere}
             .deposit-pdf-meta{margin-top:3px;color:var(--muted);font-size:12px}
             .deposit-pdf-delete{padding:6px 10px;border:1px solid #fecaca;border-radius:6px;background:#fff;color:#b91c1c;cursor:pointer}
+            .reservation-list{display:grid;gap:8px}
+            .reservation-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #eef2f7}
+            .reservation-item:last-child{border-bottom:0}
+            .reservation-title{font-weight:700}
+            .reservation-meta{margin-top:3px;color:var(--muted);font-size:12px}
+            .reservation-delete{padding:6px 10px;border:1px solid #fecaca;border-radius:6px;background:#fff;color:#b91c1c;cursor:pointer}
             .history-table{min-width:760px}
             .history-table td{vertical-align:top}
             .empty-state{color:var(--muted);padding:10px 0}
@@ -186,6 +192,8 @@
                 .pdf-upload-button{width:100%}
                 .deposit-pdf-item{align-items:stretch;flex-direction:column}
                 .deposit-pdf-delete{width:100%}
+                .reservation-item{align-items:stretch;flex-direction:column}
+                .reservation-delete{width:100%}
                 .modal{align-items:flex-start;padding:10px}
                 .modal.active{align-items:flex-start}
                 .modal-content{width:100%;max-height:calc(100dvh - 20px);padding:16px}
@@ -391,6 +399,7 @@
                             <button id="detail-daisha-edit-btn" style="padding:8px 16px;border-radius:6px;border:0;background:var(--accent);color:#fff;cursor:pointer">編集</button>
                             <button id="detail-daisha-loan-btn" style="padding:8px 16px;border-radius:6px;border:0;background:#eef2ff;color:var(--accent);cursor:pointer">貸出登録</button>
                             <button id="detail-daisha-return-btn" style="padding:8px 16px;border-radius:6px;border:0;background:#eef2ff;color:var(--accent);cursor:pointer">返却登録</button>
+                            <button id="detail-daisha-reservation-btn" style="padding:8px 16px;border-radius:6px;border:1px solid #bfdbfe;background:#eff6ff;color:#075985;cursor:pointer">貸出予約</button>
                         </div>
                     </div>
 
@@ -402,6 +411,11 @@
                         <input id="daisha-pdf-input" type="file" accept="application/pdf,.pdf" hidden onchange="uploadDaishaPdf(this)">
                         <div id="daisha-pdf-list" class="deposit-pdf-list"></div>
                     </section>
+
+                    <div class="panel" style="margin-top:16px">
+                        <h2 style="margin:0 0 12px">貸出予約</h2>
+                        <div id="detail-daisha-reservations" class="reservation-list"></div>
+                    </div>
 
                     <div class="panel" style="margin-top:16px">
                         <h2 style="margin:0 0 12px">貸出履歴</h2>
@@ -716,6 +730,33 @@
                 <div class="modal-footer">
                     <button data-modal-close>キャンセル</button>
                     <button class="primary" onclick="submitDaishaLoan()">登録</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- モーダル: 代車貸出予約 -->
+        <div id="modal-daisha-reservation" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>代車貸出予約</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>予約先 <span style="color:#b91c1c">*</span></label>
+                        <input type="text" id="daisha-reservation-to" placeholder="貸出先を入力してください" required>
+                    </div>
+                    <div class="form-group">
+                        <label>貸出予定日 <span style="color:#b91c1c">*</span></label>
+                        <input type="date" id="daisha-reservation-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>貸出予定時刻</label>
+                        <input type="time" id="daisha-reservation-time">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button data-modal-close>キャンセル</button>
+                    <button class="primary" onclick="submitDaishaReservation()">予約登録</button>
                 </div>
             </div>
         </div>
@@ -1898,6 +1939,85 @@
 
                 window._daishaLoanTargetId = null;
                 window._daishaReturnTargetId = null;
+                window._daishaReservationTargetId = null;
+
+                window.openDaishaReservation = function(id){
+                    const daisha = loadDaishas().find(x => x.id === id);
+                    if(!daisha) return alert('対象が見つかりません');
+                    if(['販売済み', '抹消済み'].includes(daisha.status)) return alert('販売済み・抹消済みの代車は予約できません');
+                    window._daishaReservationTargetId = id;
+                    document.getElementById('daisha-reservation-to').value = '';
+                    document.getElementById('daisha-reservation-date').value = '';
+                    document.getElementById('daisha-reservation-time').value = '';
+                    document.getElementById('modal-daisha-reservation').classList.add('active');
+                };
+
+                window.submitDaishaReservation = function(){
+                    const id = window._daishaReservationTargetId;
+                    const daishas = loadDaishas();
+                    const idx = daishas.findIndex(x => x.id === id);
+                    if(idx < 0) return alert('対象が見つかりません');
+                    const loanTo = document.getElementById('daisha-reservation-to')?.value.trim();
+                    const loanDate = document.getElementById('daisha-reservation-date')?.value || '';
+                    const loanTime = document.getElementById('daisha-reservation-time')?.value || '';
+                    if(!loanTo){
+                        alert('予約先を入力してください');
+                        document.getElementById('daisha-reservation-to')?.focus();
+                        return;
+                    }
+                    if(!loanDate){
+                        alert('貸出予定日を入力してください');
+                        document.getElementById('daisha-reservation-date')?.focus();
+                        return;
+                    }
+
+                    if(!Array.isArray(daishas[idx].reservations)) daishas[idx].reservations = [];
+                    daishas[idx].reservations.push({
+                        id: `RSV-${Date.now()}`,
+                        loanTo,
+                        loanDate,
+                        loanTime,
+                        createdAt: new Date().toISOString()
+                    });
+                    saveDaishas(daishas);
+                    renderDaishas();
+                    if(window._currentDaishaDetailId === id) showDaishaDetail(id);
+                    document.getElementById('modal-daisha-reservation').classList.remove('active');
+                    window._daishaReservationTargetId = null;
+                    alert('貸出予約を登録しました');
+                };
+
+                window.deleteDaishaReservation = function(reservationId){
+                    const id = window._currentDaishaDetailId;
+                    const daishas = loadDaishas();
+                    const idx = daishas.findIndex(x => x.id === id);
+                    if(idx < 0 || !reservationId) return;
+                    if(!confirm('この貸出予約を取り消しますか？')) return;
+                    daishas[idx].reservations = (daishas[idx].reservations || []).filter(item => item.id !== reservationId);
+                    saveDaishas(daishas);
+                    renderDaishas();
+                    showDaishaDetail(id);
+                };
+
+                function renderDaishaReservations(daisha){
+                    const box = document.getElementById('detail-daisha-reservations');
+                    if(!box) return;
+                    const reservations = [...(Array.isArray(daisha.reservations) ? daisha.reservations : [])]
+                        .sort((a, b) => `${a.loanDate || ''} ${a.loanTime || ''}`.localeCompare(`${b.loanDate || ''} ${b.loanTime || ''}`));
+                    if(reservations.length === 0){
+                        box.innerHTML = '<div class="empty-state">貸出予約はまだありません</div>';
+                        return;
+                    }
+                    box.innerHTML = reservations.map(reservation => `
+                        <div class="reservation-item">
+                            <div>
+                                <div class="reservation-title">${escapeHtml(reservation.loanTo || '-')}</div>
+                                <div class="reservation-meta">貸出予定: ${escapeHtml(reservation.loanDate || '-')} ${escapeHtml(reservation.loanTime || '')}</div>
+                            </div>
+                            <button type="button" class="reservation-delete" onclick="deleteDaishaReservation('${escapeHtml(reservation.id || '')}')">取消</button>
+                        </div>
+                    `).join('');
+                }
 
                 window.openDaishaLoan = function(id){
                     const daishas = loadDaishas();
@@ -2011,6 +2131,12 @@
 
                     const loanBtn = document.getElementById('detail-daisha-loan-btn');
                     const returnBtn = document.getElementById('detail-daisha-return-btn');
+                    const reservationBtn = document.getElementById('detail-daisha-reservation-btn');
+                    const reservable = !['販売済み', '抹消済み'].includes(daisha.status);
+                    if(reservationBtn){
+                        reservationBtn.style.display = reservable ? 'inline-block' : 'none';
+                        reservationBtn.onclick = () => openDaishaReservation(id);
+                    }
 
                     if(daisha.status === '貸出中'){
                         loanBtn.style.display = 'none';
@@ -2026,6 +2152,7 @@
                     }
 
                     renderDaishaHistory(daisha);
+                    renderDaishaReservations(daisha);
                     renderDaishaPdfs(id);
                     refreshDaishaPdfs(id);
 
