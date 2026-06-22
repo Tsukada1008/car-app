@@ -42,6 +42,9 @@
             .status.maintenance{background:#fce7f3;color:#9d174d}
             .status.sold,.status.deregistered{background:#fee2e2;color:#b91c1c}
             .status.returned{background:#e0f2fe;color:#075985}
+            .shaken-date{display:inline-flex;padding:3px 7px;border-radius:6px;font-size:12px;font-weight:700}
+            .shaken-date.two-months{background:#fef3c7;color:#92400e}
+            .shaken-date.one-month{background:#ffedd5;color:#c2410c}
             .deposit-category-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
             .deposit-category-tag{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:11px;font-weight:700;line-height:1.2}
             .deposit-category-tag.maintenance{background:#e0f2fe;color:#075985}
@@ -1549,6 +1552,34 @@
                     return 'available';
                 }
 
+                function addCalendarMonths(date, months){
+                    const result = new Date(date);
+                    const day = result.getDate();
+                    result.setDate(1);
+                    result.setMonth(result.getMonth() + months);
+                    const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+                    result.setDate(Math.min(day, lastDay));
+                    return result;
+                }
+
+                function renderDaishaShakenDate(shaken){
+                    if(!shaken) return '';
+                    const target = new Date(`${shaken}T00:00:00`);
+                    if(Number.isNaN(target.getTime())) return escapeHtml(shaken);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const oneMonth = addCalendarMonths(today, 1);
+                    const twoMonths = addCalendarMonths(today, 2);
+                    const className = target >= today && target <= oneMonth
+                        ? 'shaken-date one-month'
+                        : target >= today && target <= twoMonths
+                            ? 'shaken-date two-months'
+                            : '';
+                    return className
+                        ? `<span class="${className}">${escapeHtml(shaken)}</span>`
+                        : escapeHtml(shaken);
+                }
+
                 function getDashboardSearchKeyword(){
                     return (document.getElementById('dashboard-search')?.value || '').trim().toLowerCase();
                 }
@@ -1787,7 +1818,7 @@
                                 <td>${escapeHtml(d.model||'')}</td>
                                 <td>${escapeHtml(d.color||'')}</td>
                                 <td>${escapeHtml(d.number||'')}</td>
-                                <td>${escapeHtml(d.shaken||'')}</td>
+                                <td>${renderDaishaShakenDate(d.shaken)}</td>
                                 <td><span class="status ${cls}">${escapeHtml(d.status||'')}</span></td>`;
                             if(mode === 'manage'){
                                 let actionButtons = '';
