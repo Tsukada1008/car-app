@@ -1304,15 +1304,22 @@
                 async function hydrateCloudData(){
                     if(!isCloudSyncEnabled()) return;
 
-                    const [daishas, loans, deposits, ...optionSets] = await Promise.all([
+                    const [daishas, loans, deposits, daishaReservations, ...optionSets] = await Promise.all([
                         loadStoreFromCloud('daishas'),
                         loadStoreFromCloud('loans'),
                         loadStoreFromCloud('deposits'),
+                        loadStoreFromCloud('daisha-reservations'),
                         ...CONFIG_KEYS.map(key => loadStoreFromCloud(`options-${key}`))
                     ]);
 
                     if(daishas){
-                        localStorage.setItem('daishas', JSON.stringify(daishas));
+                        const mergedDaishas = applyDaishaReservationSnapshot(daishas, daishaReservations);
+                        localStorage.setItem('daishas', JSON.stringify(mergedDaishas));
+                        if(!Array.isArray(daishaReservations) || !daishaReservations.some(item => item && item.id === '__snapshot__')){
+                            if(mergedDaishas.some(daisha => Array.isArray(daisha.reservations) && daisha.reservations.length > 0)){
+                                syncDaishaReservations(mergedDaishas);
+                            }
+                        }
                         renderDaishas();
                     }
                     if(loans){
@@ -1604,6 +1611,43 @@
                 function saveDaishas(arr){
                     localStorage.setItem('daishas', JSON.stringify(arr));
                     syncStoreToCloud('daishas', arr);
+                }
+
+                function syncDaishaReservations(daishas){
+                    syncStoreToCloudByJsonp('daisha-reservations', buildDaishaReservationSnapshot(daishas));
+                }
+
+                function buildDaishaReservationSnapshot(daishas){
+                    return [
+                        {id: '__snapshot__'},
+                        ...daishas.map(daisha => ({
+                            id: daisha.id,
+                            reservations: Array.isArray(daisha.reservations) ? daisha.reservations : []
+                        }))
+                    ];
+                }
+
+                function applyDaishaReservationSnapshot(daishas, snapshot){
+                    if(!Array.isArray(snapshot) || !snapshot.some(item => item && item.id === '__snapshot__')) return daishas;
+                    const reservationMap = new Map(snapshot
+                        .filter(item => item && item.id && item.id !== '__snapshot__')
+                        .map(item => [item.id, Array.isArray(item.reservations) ? item.reservations : []]));
+                    return daishas.map(daisha => ({
+                        ...daisha,
+                        reservations: reservationMap.get(daisha.id) || []
+                    }));
+                }
+
+                async function refreshDaishaReservationsFromCloud(){
+                    const snapshot = await loadStoreFromCloud('daisha-reservations');
+                    if(!Array.isArray(snapshot) || !snapshot.some(item => item && item.id === '__snapshot__')) return;
+                    const daishas = applyDaishaReservationSnapshot(loadDaishas(), snapshot);
+                    localStorage.setItem('daishas', JSON.stringify(daishas));
+                    renderDaishas();
+                    if(window._currentDaishaDetailId){
+                        const daisha = daishas.find(item => item.id === window._currentDaishaDetailId);
+                        if(daisha) renderDaishaReservations(daisha);
+                    }
                 }
 
                 function isAvailableDaisha(daisha){
@@ -2036,6 +2080,7 @@
                         createdAt: new Date().toISOString()
                     });
                     saveDaishas(daishas);
+                    syncDaishaReservations(daishas);
                     renderDaishas();
                     if(window._currentDaishaDetailId === id) showDaishaDetail(id);
                     document.getElementById('modal-daisha-reservation').classList.remove('active');
@@ -2051,6 +2096,7 @@
                     if(!confirm('この貸出予約を取り消しますか？')) return;
                     daishas[idx].reservations = (daishas[idx].reservations || []).filter(item => item.id !== reservationId);
                     saveDaishas(daishas);
+                    syncDaishaReservations(daishas);
                     renderDaishas();
                     showDaishaDetail(id);
                 };
@@ -3454,6 +3500,10 @@
                 // 初期描画
                 renderLoans();
                 hydrateCloudData();
+                window.addEventListener('focus', refreshDaishaReservationsFromCloud);
+                document.addEventListener('visibilitychange', ()=>{
+                    if(!document.hidden) refreshDaishaReservationsFromCloud();
+                });
             })();
         </script>
     </body>
