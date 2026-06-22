@@ -40,6 +40,7 @@
             .status.available{background:#e0f2fe;color:#075985}
             .status.loaned{background:#fef3c7;color:#92400e}
             .status.maintenance{background:#fce7f3;color:#9d174d}
+            .status.sold,.status.deregistered{background:#fee2e2;color:#b91c1c}
             .status.returned{background:#e0f2fe;color:#075985}
             .deposit-category-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
             .deposit-category-tag{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:11px;font-weight:700;line-height:1.2}
@@ -309,6 +310,12 @@
                             <h2>代車一覧</h2>
                             <div class="list-controls">
                                 <button type="button" id="daisha-search-reset" class="list-reset-button" onclick="clearDaishaSearch()" hidden>一覧表示に戻る</button>
+                                <select id="daisha-sort" class="sort-select" onchange="changeDaishaSort(this.value)" aria-label="代車一覧の並び替え">
+                                    <option value="default">登録順</option>
+                                    <option value="shaken-asc">車検: 早い順</option>
+                                    <option value="shaken-desc">車検: 遅い順</option>
+                                    <option value="status">ステータス順</option>
+                                </select>
                             </div>
                         </div>
                         <table>
@@ -606,6 +613,8 @@
                             <option>空車</option>
                             <option>貸出中</option>
                             <option>整備中</option>
+                            <option>販売済み</option>
+                            <option>抹消済み</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -653,6 +662,8 @@
                             <option>空車</option>
                             <option>貸出中</option>
                             <option>整備中</option>
+                            <option>販売済み</option>
+                            <option>抹消済み</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -1533,6 +1544,8 @@
                 function getDaishaStatusClass(status){
                     if(status === '\u8cb8\u51fa\u4e2d') return 'loaned';
                     if(status === '\u6574\u5099\u4e2d') return 'maintenance';
+                    if(status === '\u8ca9\u58f2\u6e08\u307f') return 'sold';
+                    if(status === '\u6284\u6d88\u6e08\u307f') return 'deregistered';
                     return 'available';
                 }
 
@@ -1541,6 +1554,37 @@
                 }
 
                 let daishaSearchQuery = '';
+                const DAISHA_STATUS_SORT_ORDER = ['空車', '貸出中', '整備中', '販売済み', '抹消済み'];
+                let daishaSort = localStorage.getItem('daishaSort') || 'default';
+
+                function getDaishaShakenDateValue(daisha){
+                    const value = Date.parse(`${daisha.shaken || ''}T00:00:00`);
+                    return Number.isNaN(value) ? null : value;
+                }
+
+                function sortManagedDaishas(daishas){
+                    if(daishaSort === 'default') return daishas;
+                    return [...daishas].sort((a, b) => {
+                        if(daishaSort === 'status'){
+                            const aIndex = DAISHA_STATUS_SORT_ORDER.indexOf(a.status);
+                            const bIndex = DAISHA_STATUS_SORT_ORDER.indexOf(b.status);
+                            return (aIndex < 0 ? 999 : aIndex) - (bIndex < 0 ? 999 : bIndex) || String(a.id || '').localeCompare(String(b.id || ''));
+                        }
+
+                        const aDate = getDaishaShakenDateValue(a);
+                        const bDate = getDaishaShakenDateValue(b);
+                        if(aDate === null && bDate === null) return 0;
+                        if(aDate === null) return 1;
+                        if(bDate === null) return -1;
+                        return daishaSort === 'shaken-desc' ? bDate - aDate : aDate - bDate;
+                    });
+                }
+
+                window.changeDaishaSort = function(value){
+                    daishaSort = ['default', 'shaken-asc', 'shaken-desc', 'status'].includes(value) ? value : 'default';
+                    localStorage.setItem('daishaSort', daishaSort);
+                    renderDaishas();
+                };
 
                 function normalizeSearchNumber(value){
                     return String(value || '').trim().replace(/[０-９]/g, char => String.fromCharCode(char.charCodeAt(0) - 0xFEE0));
@@ -1720,14 +1764,16 @@
                     if(!lists || lists.length===0) return;
                     const daishas = loadDaishas();
                     const resetButton = document.getElementById('daisha-search-reset');
+                    const sortSelect = document.getElementById('daisha-sort');
                     if(resetButton) resetButton.hidden = !daishaSearchQuery;
+                    if(sortSelect) sortSelect.value = daishaSort;
                     renderDaishaDashboardStats(daishas);
                     renderDepositDaishaOptions(daishas);
                     lists.forEach(tb=>{
                         const mode = tb.dataset.mode || 'overview';
                         const displayDaishas = mode === 'overview'
                             ? daishas.filter(isAvailableDaisha)
-                            : daishas.filter(d => daishaMatchesKeyword(d, daishaSearchQuery, true));
+                            : sortManagedDaishas(daishas.filter(d => daishaMatchesKeyword(d, daishaSearchQuery, true)));
                         if(displayDaishas.length===0){
                             const colspan = mode === 'manage' ? 7 : 6;
                             const message = mode === 'manage' && daishaSearchQuery ? '該当する代車がありません' : 'データがありません';
@@ -1747,7 +1793,7 @@
                                 let actionButtons = '';
                                 if(d.status === '貸出中'){
                                     actionButtons += `<button onclick="openDaishaReturn('${escapeHtml(d.id)}')" style="padding:4px 8px;border-radius:6px;border:0;background:#eef2ff;color:var(--accent);cursor:pointer;font-size:12px">返却登録</button>`;
-                                } else {
+                                } else if(d.status === '空車') {
                                     actionButtons += `<button onclick="openDaishaLoan('${escapeHtml(d.id)}')" style="padding:4px 8px;border-radius:6px;border:0;background:#eef2ff;color:var(--accent);cursor:pointer;font-size:12px">貸出登録</button>`;
                                 }
                                 row += `<td>${actionButtons}</td>`;
@@ -1823,7 +1869,7 @@
                     const daishas = loadDaishas();
                     const daisha = daishas.find(x=>x.id===id);
                     if(!daisha) return alert('対象が見つかりません');
-                    if(daisha.status === '貸出中') return alert('既に貸出中です');
+                    if(daisha.status !== '空車') return alert('空車の代車を選択してください');
                     window._daishaLoanTargetId = id;
                     document.getElementById('daisha-loan-to').value = '';
                     document.getElementById('daisha-loan-date').value = '';
@@ -1936,10 +1982,13 @@
                         loanBtn.style.display = 'none';
                         returnBtn.style.display = 'inline-block';
                         returnBtn.onclick = function(){ openDaishaReturn(id); };
-                    }else{
+                    }else if(daisha.status === '空車'){
                         loanBtn.style.display = 'inline-block';
                         returnBtn.style.display = 'none';
                         loanBtn.onclick = function(){ openDaishaLoan(id); };
+                    }else{
+                        loanBtn.style.display = 'none';
+                        returnBtn.style.display = 'none';
                     }
 
                     renderDaishaHistory(daisha);
