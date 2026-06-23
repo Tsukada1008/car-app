@@ -564,7 +564,6 @@
                                     <th>入庫日</th>
                                     <th>納車日</th>
                                     <th>支払方法</th>
-                                    <th>操作</th>
                                 </tr>
                             </thead>
                             <tbody id="deposit-history-tbody">
@@ -3067,7 +3066,7 @@
                     }
 
                     if(historyTbody && deliveredDeposits.length === 0){
-                        historyTbody.innerHTML = `<tr><td colspan="6" style="color:var(--muted)">${depositSearchQuery ? '該当する納車済み履歴がありません' : '納車済み履歴はありません'}</td></tr>`;
+                        historyTbody.innerHTML = `<tr><td colspan="5" style="color:var(--muted)">${depositSearchQuery ? '該当する納車済み履歴がありません' : '納車済み履歴はありません'}</td></tr>`;
                     }else if(historyTbody){
                         historyTbody.innerHTML = deliveredDeposits.map(d=>`
                             <tr>
@@ -3076,7 +3075,6 @@
                                 <td>${escapeHtml(d.date || '-')}</td>
                                 <td>${escapeHtml(d.deliveredAt || '-')}</td>
                                 <td>${escapeHtml(formatPayment(d.payment) || '-')}</td>
-                                <td><button type="button" onclick="deleteDeposit('${escapeHtml(d.id || '')}')" style="padding:6px 10px;border-radius:6px;border:1px solid #fecaca;background:#fff;color:#b91c1c;cursor:pointer">削除</button></td>
                             </tr>
                         `).join('');
                     }
