@@ -1230,6 +1230,8 @@
                     return GOOGLE_SHEETS_WEB_APP_URL.length > 0;
                 }
 
+                const JSONP_SYNC_MAX_CHARS = 8000;
+
                 function syncStoreToCloud(key, data){
                     if(!isCloudSyncEnabled()) return;
 
@@ -1243,7 +1245,25 @@
                         mode: 'no-cors',
                         headers: {'Content-Type': 'text/plain;charset=utf-8'},
                         body: JSON.stringify({action: 'save', key, data})
-                    }).catch(err => console.warn('Google Sheets sync failed:', err));
+                    }).then(()=>{
+                        // no-cors responses cannot report server errors, so verify the write separately.
+                        setTimeout(()=> verifyCloudStore(key, data), 1500);
+                    }).catch(err => {
+                        console.warn('Google Sheets sync failed:', err);
+                        if(JSON.stringify(data).length <= JSONP_SYNC_MAX_CHARS){
+                            syncStoreToCloudByJsonp(key, data);
+                        }
+                    });
+                }
+
+                async function verifyCloudStore(key, expectedData){
+                    const cloudData = await loadStoreFromCloud(key);
+                    if(JSON.stringify(cloudData) === JSON.stringify(expectedData)) return;
+                    if(JSON.stringify(expectedData).length <= JSONP_SYNC_MAX_CHARS){
+                        syncStoreToCloudByJsonp(key, expectedData);
+                    }else{
+                        console.warn('Google Sheets verification did not match and data is too large for JSONP fallback:', key);
+                    }
                 }
 
                 function syncStoreToCloudByJsonp(key, data){
@@ -1346,6 +1366,13 @@
                         renderAllLists();
                     }
                     syncAllOptionsToCloud();
+                }
+
+                let cloudHydrationTimer = null;
+                function scheduleCloudHydration(){
+                    if(!isCloudSyncEnabled()) return;
+                    clearTimeout(cloudHydrationTimer);
+                    cloudHydrationTimer = setTimeout(hydrateCloudData, 300);
                 }
 
                 window.setGoogleSheetsWebAppUrl = function(url){
@@ -3508,9 +3535,9 @@
                 // 初期描画
                 renderLoans();
                 hydrateCloudData();
-                window.addEventListener('focus', refreshDaishaReservationsFromCloud);
+                window.addEventListener('focus', scheduleCloudHydration);
                 document.addEventListener('visibilitychange', ()=>{
-                    if(!document.hidden) refreshDaishaReservationsFromCloud();
+                    if(!document.hidden) scheduleCloudHydration();
                 });
             })();
         </script>
