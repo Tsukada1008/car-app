@@ -2879,6 +2879,11 @@
                     return Number.isNaN(value) ? 0 : value;
                 }
 
+                function getDateValue(date){
+                    const value = Date.parse(`${date || ''}T00:00:00`);
+                    return Number.isNaN(value) ? 0 : value;
+                }
+
                 function sortActiveDeposits(deposits){
                     return [...deposits].sort((a, b) => {
                         const dateDiff = getDepositDateValue(b) - getDepositDateValue(a);
@@ -3009,7 +3014,10 @@
                     const deposits = loadDeposits();
                     const allActiveDeposits = deposits.filter(d => !isDeliveredDeposit(d));
                     const activeDeposits = sortActiveDeposits(allActiveDeposits.filter(d => depositMatchesSearch(d, depositSearchQuery)));
-                    const deliveredDeposits = deposits.filter(isDeliveredDeposit).filter(d => depositMatchesSearch(d, depositSearchQuery));
+                    const deliveredDeposits = deposits
+                        .filter(isDeliveredDeposit)
+                        .filter(d => depositMatchesSearch(d, depositSearchQuery))
+                        .sort((a, b) => getDateValue(b.deliveredAt) - getDateValue(a.deliveredAt) || getDepositDateValue(b) - getDepositDateValue(a));
                     if(sortSelect) sortSelect.value = depositSort;
                     if(resetButton) resetButton.hidden = !depositSearchQuery;
                     if(dashboardDepositCount) dashboardDepositCount.textContent = allActiveDeposits.length;
